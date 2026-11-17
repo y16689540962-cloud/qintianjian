@@ -145,10 +145,11 @@ def jd_to_datetime(jd):
     jd = float(jd)
     jdn = int(math.floor(jd + 0.5))
     frac = jd + 0.5 - jdn
-    micro = int(round(frac * 86400 * 1000000))
-    if micro >= 86400 * 1000000:
+    # 毫秒取整：JD 双精度在 2.4e6 量级的量化误差约 0.1 毫秒，取整到毫秒可消掉 59.9999 秒那类假象
+    millis = int(round(frac * 86400000.0))
+    if millis >= 86400000:
         jdn += 1
-        micro -= 86400 * 1000000
+        millis -= 86400000
     # JDN -> 公历（格里历）
     a = jdn + 32044
     b = (4 * a + 3) // 146097
@@ -159,7 +160,7 @@ def jd_to_datetime(jd):
     day = e - (153 * mm + 2) // 5 + 1
     month = mm + 3 - 12 * (mm // 10)
     year = 100 * b + dd - 4800 + mm // 10
-    return datetime(year, month, day) + timedelta(microseconds=micro)
+    return datetime(year, month, day) + timedelta(milliseconds=millis)
 
 
 def _month_length(y, m):

@@ -141,7 +141,7 @@ python3 scripts/hehun.py --a-solar 1990-05-15 --a-hour 12:00 --a-sex 男 \
 | `tarot` 抽牌 | 无 oracle；seed 决定论 + 78 张牌库与文档逐字一致 | 结构级 |
 | `hehun` 合婚关系 | 依赖 `bazi` + 通行关系表 | 规则级自洽 |
 
-**回归规模**：`scripts/tests/` **141 个 unittest**（全绿）· `evals/cases.jsonl` **26 条端到端用例**（全绿，每条标 `oracle-verified` / `rule-verified` / `unverified`）。
+**回归规模**：`scripts/tests/` **210 个 unittest**（全绿）· `evals/cases.jsonl` **26 条端到端用例**（全绿，每条标 `oracle-verified` / `rule-verified` / `unverified`）。
 
 ### 一个值得记下来的仲裁（120 天偏差的真相）
 

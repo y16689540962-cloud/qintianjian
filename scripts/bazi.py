@@ -8,8 +8,10 @@
 
 输入
     --solar YYYY-MM-DD 或 --lunar YYYY-MM-DD（配 --leap）
-    --hour HH:MM / --shichen 子…亥（互斥；都不给则时柱未知）
-    --sex 男|女（缺省时大运降级：direction=null，不给顺逆）
+    --hour HH:MM / --shichen 子…亥（互斥；都不给则时柱未知——同样是有意降级：
+                                      pillars.hour=null + SHICHEN_UNKNOWN + LOW_CONFIDENCE）
+    --sex 男|女（**缺省是有意降级**：不报错、exit 0，改发 SEX_REQUIRED 警告，
+                     dayun.direction=null、dayun.list=[]，只排四柱不排大运）
     --place 城市名 / --longitude 东经度数（给了就启用真太阳时）
     --deceased-year N（只截断流年推演/定位锚点）/ --dayun-n N（大运步数，默认 10）
 
@@ -568,6 +570,10 @@ def build_chart(solar_ymd, hour=None, minute=0, sex=None, place=None, longitude=
                     "correction_seconds": corr,
                     "clock": dt.strftime("%Y-%m-%d %H:%M"),
                     "true_solar": eff.strftime("%Y-%m-%d %H:%M:%S")}
+        if meridian is not None and abs(float(meridian) - 120.0) > 1e-9:
+            warn("LOW_CONFIDENCE",
+                 "标准经线取 %s°（非中国 UTC+8 的 120°E）：本内核默认按中国标准时解释钟表时，"
+                 "海外出生属降级场景，请自行确认时区与当地夏令时" % meridian)
         warn("TST_APPLIED",
              "真太阳时已生效（经度 %s°，来源%s）：钟表时 %s → 真太阳时 %s，修正 %+d 秒；"
              "影响时支判定与子初换日" % (lon, lon_src, dt.strftime("%H:%M"),

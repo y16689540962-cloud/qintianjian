@@ -215,6 +215,28 @@ class TestCasting(unittest.TestCase):
             L.analyze("manual", "2026-11-18", None, None, "1010x1", None, None)
 
 
+class TestCastDisclosure(unittest.TestCase):
+    """诚信披露：AI 代掷必须自己说出来，用户自报爻不许被说成代掷。"""
+
+    def test_ai_cast_warns_and_marks_cast_by_ai(self):
+        for method in ("coins", "yarrow"):
+            out = L.analyze(method, "2026-11-18", "10:30", 42, None, None, "问事")
+            codes = [w["code"] for w in out["warnings"]]
+            self.assertIn("AI_CAST_RANDOM", codes, "%s 起卦未披露 AI 代掷" % method)
+            msg = [w["message"] for w in out["warnings"] if w["code"] == "AI_CAST_RANDOM"][0]
+            self.assertIn("seed=42", msg)
+            self.assertIn("不是用户亲手摇的", msg)
+            self.assertEqual(out["result"]["cast_by"], "ai")
+            # 信封与 result.warnings 必须是同一份（不能只加一处）
+            self.assertIn("AI_CAST_RANDOM", [w["code"] for w in out["result"]["warnings"]])
+
+    def test_user_cast_has_no_ai_warning(self):
+        out = L.analyze("manual", "2026-11-18", "10:30", None, "101011", "3", None)
+        codes = [w["code"] for w in out["warnings"]]
+        self.assertNotIn("AI_CAST_RANDOM", codes)
+        self.assertEqual(out["result"]["cast_by"], "user")
+
+
 class TestEnvelope(unittest.TestCase):
     """§3 / §6 字段契约与独立运行。"""
 

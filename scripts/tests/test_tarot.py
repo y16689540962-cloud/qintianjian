@@ -208,5 +208,39 @@ class TestResultContract(unittest.TestCase):
         self.assertFalse(json.loads(proc.stdout)["ok"])
 
 
+class TestDrawDisclosure(unittest.TestCase):
+    """诚信披露：脚本代抽必须自己说出来；当事人亲手抽时不发该警告。"""
+
+    def test_default_ai_draw_warns(self):
+        out = T.analyze("three", "问事", "rws", 42)
+        codes = [w["code"] for w in out["warnings"]]
+        self.assertIn("AI_DRAWN", codes, "默认 AI 抽牌未披露")
+        msg = [w["message"] for w in out["warnings"] if w["code"] == "AI_DRAWN"][0]
+        self.assertIn("不是用户亲手抽的", msg)
+        self.assertEqual(out["result"]["drawn_by"], "ai")
+        # CLI 默认值也必须是 ai，且信封里要带上 drawn_by
+        cmd = [sys.executable, os.path.join(SCRIPTS, "tarot.py"),
+               "--spread", "three", "--seed", "42", "--json"]
+        proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        env = json.loads(proc.stdout)
+        self.assertEqual(env["result"]["drawn_by"], "ai")
+        self.assertIn("AI_DRAWN", [w["code"] for w in env["warnings"]])
+
+    def test_user_draw_has_no_ai_warning(self):
+        out = T.analyze("three", "问事", "rws", 42, "user")
+        codes = [w["code"] for w in out["warnings"]]
+        self.assertNotIn("AI_DRAWN", codes)
+        self.assertEqual(out["result"]["drawn_by"], "user")
+        cmd = [sys.executable, os.path.join(SCRIPTS, "tarot.py"),
+               "--spread", "three", "--seed", "42", "--drawn-by", "user", "--json"]
+        proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        env = json.loads(proc.stdout)
+        self.assertNotIn("AI_DRAWN", [w["code"] for w in env["warnings"]])
+        self.assertEqual(env["result"]["drawn_by"], "user")
+        self.assertEqual(env["input"]["drawn_by"], "user")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

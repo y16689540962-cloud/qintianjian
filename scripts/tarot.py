@@ -6,7 +6,11 @@
     按牌阵抽牌并给出牌位、正逆位、牌义关键词、牌间关系与全局统计。
 
 输入
-    --spread single|three|celtic  [--question 问题]  [--deck rws]  [--seed N]  [--json]
+    --spread single|three|celtic  [--question 问题]  [--deck rws]  [--drawn-by ai|user]
+    [--seed N]  [--json]
+
+    诚实口径：脚本抽的牌一律带 `AI_DRAWN` 警告（drawn_by=ai，默认）；当事人亲手抽、
+    只把结果交来记录时才用 `--drawn-by user`，那时不发该警告。
 
 输出
     §3 统一信封；result 见 CONTRACT §6「tarot」最小集：deck / spread / cards[]/
@@ -430,14 +434,24 @@ def render_text(result: Dict[str, Any]) -> str:
 # 五、组装与 CLI
 # ===========================================================================
 
-def analyze(spread: str, question: Optional[str], deck: str, seed: Optional[int]) -> Dict[str, Any]:
+def analyze(spread: str, question: Optional[str], deck: str, seed: Optional[int],
+            drawn_by: str = "ai") -> Dict[str, Any]:
     if deck != "rws":
         raise ValueError("只内置 rws（Rider-Waite-Smith）牌库，收到 %r" % deck)
+    if drawn_by not in ("user", "ai"):
+        raise ValueError("--drawn-by 只能是 user 或 ai，收到 %r" % (drawn_by,))
     cards, warnings, used_seed, _picked = draw(spread, seed)
     if not question:
         warnings.append({
             "code": "LOW_CONFIDENCE",
             "message": "未给 --question，解读只能按牌阵通用含义走，易发散射箭",
+        })
+    if drawn_by == "ai":
+        # 诚信披露：牌是脚本洗出来抽的，不是当事人亲手抽的。
+        warnings.append({
+            "code": "AI_DRAWN",
+            "message": "牌由脚本随机抽取，不是用户亲手抽的；"
+                       "塔罗的传统做法是当事人抽牌，AI 抽牌只作反思素材",
         })
     result = {
         "deck": deck,
@@ -445,6 +459,7 @@ def analyze(spread: str, question: Optional[str], deck: str, seed: Optional[int]
         "spread": spread,
         "spread_name": SPREADS[spread]["name"],
         "question": question,
+        "drawn_by": drawn_by,
         "positions": SPREADS[spread]["positions"],
         "cards": cards,
         "relations": analyze_relations(cards, spread),
@@ -462,6 +477,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="牌阵：single / three / celtic（默认 three）")
     p.add_argument("--question", help="所问事由")
     p.add_argument("--deck", default="rws", help="牌库，仅支持 rws")
+    p.add_argument("--drawn-by", default="ai", choices=["user", "ai"],
+                   help="谁抽的牌：ai=脚本代抽（默认，会发 AI_DRAWN）；user=当事人亲手抽")
     p.add_argument("--seed", type=int, help="随机种子，便于回放")
     p.add_argument("--json", action="store_true", help="输出 JSON（默认人类可读）")
     return p
@@ -474,9 +491,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "spread": args.spread,
         "question": args.question,
         "deck": args.deck,
+        "drawn_by": args.drawn_by,
     }
     try:
-        out = analyze(args.spread, args.question, args.deck, args.seed)
+        out = analyze(args.spread, args.question, args.deck, args.seed, args.drawn_by)
     except Exception as exc:  # 统一转信封 error + exit 2（契约 §9）
         if args.json:
             sys.stdout.write(json.dumps({

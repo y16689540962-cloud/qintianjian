@@ -1,0 +1,27 @@
+# 测试与跑批真实输出 · 2026-11-18 07:03:49 CST
+
+$ python3 -m unittest discover -s scripts/tests -q
+----------------------------------------------------------------------
+Ran 216 tests in 2.809s
+
+OK
+
+$ python3 evals/run_evals.py
+PASS  cal-1863-01-19-boundary            [oracle-arbitrated]
+PASS  cal-1880-11-02-boundary            [oracle-arbitrated]
+PASS  cal-1896-02-13-boundary            [oracle-arbitrated]
+
+=== 汇总：32 passed, 0 failed ===
+
+$ python3 evals/lint_reading.py evals/samples/good.md
+
+体检结果：46 行文本，0 ERROR，0 WARN → 通过
+
+$ python3 evals/lint_reading.py evals/samples/bad.md
+
+体检结果：11 行文本，11 ERROR，1 WARN → 不合格
+
+$ python3 scripts/xuan.py doctor
+  fengshui  OK    1163 行 
+  hehun     OK     345 行 
+第三方依赖：无（零依赖 ✅）

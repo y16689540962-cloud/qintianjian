@@ -165,12 +165,24 @@ def parse_facing(raw: str) -> Tuple[float, str, List[Dict[str, str]]]:
     """解析 --facing：优先度数，其次二十四山名，再次八方位词。
 
     返回 (度数, 山名, warnings)。仅给方位词时按 §4 要求发 LOW_CONFIDENCE。
+
+    度数输入且贴近山界（距 15° 网格边线 < 2°）时另发 CROSS_SHAN_RISK：
+    二十四山每山 15°、山界在 ±7.5°，而罗盘/手机量向误差常 >3°，
+    近界度数很容易被判到隔壁山、进而整盘飞星全错。山名输入本来就是粗判，不发此警告。
     """
     warnings: List[Dict[str, str]] = []
     text = str(raw).strip().replace("度", "").replace("°", "")
     try:
         deg = normalize_deg(float(text))
-        return deg, shan_of_deg(deg), warnings
+        shan = shan_of_deg(deg)
+        edge_dist = round(7.5 - shan_offset_deg(deg, shan), 1)
+        if edge_dist < 2.0:
+            warnings.append({
+                "code": "CROSS_SHAN_RISK",
+                "message": "向首 %.1f° 距山界仅 %.1f°；罗盘/手机量向误差常 >3°，"
+                           "可能落错山。建议复测，或按兼向处理" % (deg, edge_dist),
+            })
+        return deg, shan, warnings
     except ValueError:
         pass
     name = text.lstrip("朝坐向")

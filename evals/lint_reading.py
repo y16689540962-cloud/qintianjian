@@ -15,6 +15,9 @@
     S5 缺信息处有 warning 码（提到「未知」「不确定」时）
     S6 涉及随机（塔罗/六爻）时给出 seed 或回放命令
     S7 没有伪装师承/通灵（我是第 X 代传人、我感应到、祖师托梦）
+    S8 规则判断段（第 2 段）的断语带 basis（（calc）/（cited）/（school）/（model）或 basis:）
+    S9 没有巴纳姆历史断言（大概率有过 / 可能经历过 / 应该有过 / 曾经有过 → ERROR）
+    S10 提到塔罗/六爻等随机起卦时披露了「不是用户亲手」（代掷/AI 起卦/仅供反思；否则 WARN）
 
 退出码：0 = 通过（可有 WARN），1 = 有 ERROR。
 """
@@ -45,13 +48,40 @@ RED_LINES = [
 ]
 
 ABSOLUTE_RE = re.compile(r"(必定|必然会|一定会|注定|百分之百|100%|绝对会|铁定|无疑会)")
-CITATION_STATE_RE = re.compile(r"(（(verified|pub|school|undated)）|\((verified|pub|school|undated)\)|"
+CITATION_STATE_RE = re.compile(r"(��(verified|pub|school|undated)）|\((verified|pub|school|undated)\)|"
+                               r"[，,]\s*(verified|pub|school|undated)\s*）|"
                                r"流派口径|通行出处|无确证|原文核对|据《|云：「)")
 WARNING_CODE_RE = re.compile(r"`?(SHICHEN_UNKNOWN|JIEQI_BOUNDARY|LATE_ZI|LEAP_MONTH|"
                              r"LONGITUDE_ESTIMATED|SCHOOL_VARIANT|LOW_CONFIDENCE|CLOCK_CHANGE)`?")
 UNCERTAIN_RE = re.compile(r"(未知|不确定|没给|缺少)")
 RANDOM_RE = re.compile(r"(塔罗|抽牌|摇卦|六爻|起卦|coins|yarrow)")
 SEED_RE = re.compile(r"(seed|随机种子|回放)")
+
+#: S8 —— 判断词。「会」排除「机会/社会/学会/半会」这类非断语用法（否则误报太多）。
+JUDGMENT_RE = re.compile(r"(?<![机社学体领协年晚舞聚开闭半])会|必(?!须)|容易|适合|不宜|可得|难成|有望")
+#: S8 —— basis 标注。四级出处状态（pub/verified/undated）不算 basis，只是引文状态；
+#: 行内常见写法有三种：全角括号、半角括号、句尾「，school）」。
+BASIS_RE = re.compile(r"((calc|cited|school|model)\s*[）)]|[（(]\s*(calc|cited|school|model)\b|basis\s*[:：])")
+#: S9 —— 巴纳姆历史断言：把通吃的往事说成"看过你的盘"（R4 明令禁止）。
+BARNUM_HISTORY_RE = re.compile(
+    r"(大概率(曾)?有过|大概率(曾经)?经历过|大概有过|可能有过|可能经历过|"
+    r"应该有过|应该经历过|曾经有过|曾经经历过)")
+#: S10 —— 代掷/代抽披露的合规措辞。
+DISCLOSURE_RE = re.compile(r"(不是用户亲手|非你亲摇|AI\s*起卦|仅供反思|代掷)")
+
+
+def _section_lines(lines, pattern):
+    """取出某个「## 」段落内的行：(行号, 文本)，到下一个标题为止。"""
+    start = None
+    for i, line in enumerate(lines):
+        if start is None:
+            if re.search(pattern, line):
+                start = i + 1
+        elif line.lstrip().startswith("##"):
+            return [(j + 1, lines[j]) for j in range(start, i)]
+    if start is None:
+        return []
+    return [(j + 1, lines[j]) for j in range(start, len(lines))]
 
 
 def lint(text):
@@ -91,6 +121,25 @@ def lint(text):
     for i, line in enumerate(lines, 1):
         if re.search(r"(我是第.{0,4}代传人|祖师托梦|我感应到)", line):
             errors.append("S7 伪装师承/通灵，第 %d 行" % i)
+
+    # S8 规则判断段的断语要带 basis（只 WARN：判断词难免误伤，不因此判不合格）
+    for lineno, line in _section_lines(lines, SECTION_PATTERNS[1][1]):
+        if not line.strip() or line.lstrip().startswith(("|", ">", "#")):
+            continue
+        m = JUDGMENT_RE.search(line)
+        if m and not BASIS_RE.search(line):
+            warns.append("S8 断语缺 basis「%s」，第 %d 行：%s（补（calc）/（cited）/（school）/（model）或 basis:）"
+                         % (m.group(0), lineno, line.strip()[:50]))
+
+    # S9 巴纳姆历史断言（R4 明令禁止的句式，直接 ERROR）
+    for i, line in enumerate(lines, 1):
+        m = BARNUM_HISTORY_RE.search(line)
+        if m:
+            errors.append("S9 巴纳姆历史断言「%s」第 %d 行：%s" % (m.group(0), i, line.strip()[:60]))
+
+    # S10 代掷/代抽未披露
+    if RANDOM_RE.search(text) and not DISCLOSURE_RE.search(text):
+        warns.append("S10 提到塔罗/六爻/起卦，但没披露是谁起的手（补「不是用户亲手摇的」「代掷」「AI 起卦」「仅供反思」之一）")
 
     return errors, warns
 

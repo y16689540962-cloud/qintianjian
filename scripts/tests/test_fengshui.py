@@ -65,6 +65,30 @@ class TestLuopan(unittest.TestCase):
         self.assertTrue([w for w in r2["warnings"] if w["code"] == "LOW_CONFIDENCE"])
 
 
+class TestCrossShanRisk(unittest.TestCase):
+    """近山界度数要提示：二十四山每山 15°、山界 ±7.5°，量向误差常 >3°。"""
+
+    def test_near_boundary_degree_warns(self):
+        # 8° 属癸山（中心 15°），距子/癸山界（7.5°）仅 0.5° → 可能落错山
+        for raw in ("8", "7.5", "187", "352"):
+            r = F.feixing(raw, 8, None, None)
+            codes = [w["code"] for w in r["warnings"]]
+            self.assertIn("CROSS_SHAN_RISK", codes, "%s° 距山界 <2° 却未提示" % raw)
+            msg = [w["message"] for w in r["warnings"] if w["code"] == "CROSS_SHAN_RISK"][0]
+            self.assertIn("距山界仅", msg)
+        # 8° 的提示要带上与边界的实际距离
+        msg8 = [w["message"] for w in F.feixing("8", 8, None, None)["warnings"]
+                if w["code"] == "CROSS_SHAN_RISK"][0]
+        self.assertIn("0.5°", msg8)
+
+    def test_center_degree_and_shan_name_do_not_warn(self):
+        # 正中度数：180° = 午山中心，距两侧山界各 7.5°
+        for raw in ("180", "0", "9.5", "午"):
+            r = F.feixing(raw, 8, None, None)
+            self.assertNotIn("CROSS_SHAN_RISK", [w["code"] for w in r["warnings"]],
+                             "%s 不该发 CROSS_SHAN_RISK" % raw)
+
+
 class TestFeixingKnownCharts(unittest.TestCase):
     """玄空飞星：两张手工核对过的经典盘。"""
 

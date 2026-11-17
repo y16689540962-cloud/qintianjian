@@ -528,6 +528,13 @@ def analyze(method: str, date_str: str, hour: Optional[str], seed: Optional[int]
                 "message": "未给 --seed，已随机生成 %d 并写入信封，可用于回放" % seed,
             })
         rng: Optional[random.Random] = random.Random(seed)
+        # 诚信披露：铜钱/蓍草由脚本代掷，不是当事人亲手摇的。六爻传统要求当事人起卦，
+        # 代掷只能当结构练习；这条 warning 必须随信封一起返回，不得在解读里隐去。
+        warnings.append({
+            "code": "AI_CAST_RANDOM",
+            "message": "此卦由脚本随机生成（seed=%d），不是用户亲手摇的；"
+                       "六爻传统要求当事人起卦，代掷仅供结构参考" % seed,
+        })
     else:
         rng = None
 
@@ -586,6 +593,8 @@ def analyze(method: str, date_str: str, hour: Optional[str], seed: Optional[int]
 
     result: Dict[str, Any] = {
         "method": method,
+        # 起卦人：ai = 脚本代掷（coins/yarrow）；user = 用户自报六爻（--lines）
+        "cast_by": "ai" if method in ("coins", "yarrow") else "user",
         "date": "%04d-%02d-%02d" % (y, mo, d),
         "hour": ("%02d:%02d" % (hh, mm)) if hour else None,
         "shichen": shichen if hour else None,

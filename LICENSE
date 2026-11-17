@@ -1,0 +1,50 @@
+MIT License
+
+Copyright (c) 2026 钦天监 (Qintianjian) contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+文档授权（Documentation License）
+
+references/ 目录下的文字与 SKILL.md、README.md 采用 CC BY 4.0：
+https://creativecommons.org/licenses/by/4.0/
+转载、改编须署名「钦天监 (Qintianjian)」并注明许可。
+
+---
+
+关于上游项目的说明（Upstream Acknowledgement）
+
+本项目的设计曾参考以下公开仓库的**方法论**（问题如何拆、规则如何编号、出处如何标注），
+但**未复制其代码、规则表或大段文字**：
+
+- FANzR-arch/Numerologist_skills（无许可证 → 仅读方法论）
+- jinchenma94/bazi-skill（MIT）
+- Ming-H/yinyuan-skills（无许可证 → 仅读方法论）
+- xr843/Master-skill（代码 MIT / 内容 CC BY-NC-SA 4.0 / prompts CC BY 4.0）
+- voidforall/fengshui.skill（无许可证 → 仅读方法论）
+- daman-ovo-0404/tarot-skill（README 声明 MIT，仓库内无 LICENSE 文件 → 未使用其内容）
+
+规则表、牌义、历法算法、术语表均由本项目自行编写；古籍原文与《周易》卦爻辞属公共领域。
+塔罗牌义依 1909 年韦特-史密斯体系（图像在美国属公共领域）自行组织表述。
+
+校验工具（仅开发期使用，未随本项目分发）：
+- lunar_python（历法交叉校验）
+- iztro@2.6.2（紫微斗数交叉校验，MIT）

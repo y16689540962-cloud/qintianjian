@@ -7,7 +7,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # 固定 22.04：ubuntu-latest（26.04）已不提供 Python 3.9，而本项目宣称支持 3.9+
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:

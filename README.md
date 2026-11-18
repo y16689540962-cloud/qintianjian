@@ -68,12 +68,17 @@ python3 scripts/bazi.py --solar 1990-05-15 --hour 12:00 --sex 男   # 四柱 / �
 ./install.sh codex      # ~/.codex/skills/qintianjian
 ./install.sh /path/to   # 任意目录（含工程内 .claude/skills）
 
-# 卸载
-./install.sh --uninstall
+# 卸载（只删带本 skill 标记的目录，误删保护见 install.sh 内注释）
+./install.sh --uninstall          # 按探测目标卸载
+./install.sh --uninstall /path/to # 卸载指定路径
+
+# 升级：对已安装目录重跑一次即可（先自检通过才替换旧目录，失败则原样保留）
+./install.sh dsh
 ```
 
 手动安装：把 `SKILL.md`、`references/`、`scripts/`、`evals/` 复制到对应 skills 目录即可。
 其他 agent（Cursor / Gemini CLI / 自研 harness）读同一份 `SKILL.md`，把 `scripts/` 当工具目录。
+`--force` 覆盖非本 skill 目录、`--no-verify` 跳过自检，属显式逃生门，默认均关闭。
 
 ---
 

@@ -10,8 +10,8 @@
 | DSH 安装 | `./install.sh dsh` | 复制到 `~/.dsh/skills/qintianjian`，`doctor` 8 模块 OK，第三方依赖「无」 |
 | Claude Code 目录安装 | `./install.sh claude` | 复制到 `~/.claude/skills/qintianjian`，从该目录跑 `doctor` 通过（验证后已删副本，避免和 DSH 版混淆） |
 | 从安装目录出盘 | `python3 ~/.dsh/skills/qintianjian/scripts/xuan.py calendar --date 2026-02-17` | 输出「丙午年 庚寅月 壬戌日 / 正月初一」，与仓库内运行一致 |
-| 端到端 | `python3 evals/run_evals.py` | 32 passed, 0 failed |
-| 单元测试 | `python3 -m unittest discover -s scripts/tests -q` | 216 tests, OK |
+| 端到端 | `python3 evals/run_evals.py` | 34 passed, 0 failed, 0 errors |
+| 单元测试 | `python3 -m unittest discover -s scripts/tests -q` | 260 tests, OK |
 
 ## 2. 未验证（必须在发布说明里写明，不许含糊）
 

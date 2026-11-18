@@ -19,6 +19,11 @@
     S9 没有巴纳姆历史断言（大概率有过 / 可能经历过 / 应该有过 / 曾经有过 → ERROR）
     S10 提到塔罗/六爻等随机起卦时披露了「不是用户亲手」（代掷/AI 起卦/仅供反思；否则 WARN）
 
+严重度规则（v1.2 显式化，代码里以 RULES 为准）：
+    ERROR（导致不合格）：S1 缺段、S2 引文无状态、S3 红线、S4 绝对化、S7 伪装师承、
+                         S8 断语缺 basis、S9 巴纳姆历史断言
+    WARN （只提示）：     S5 缺信息无 warning 码、S6 随机无 seed、S10 代掷未披露
+
 退出码：0 = 通过（可有 WARN），1 = 有 ERROR。
 """
 
@@ -48,9 +53,16 @@ RED_LINES = [
 ]
 
 ABSOLUTE_RE = re.compile(r"(必定|必然会|一定会|注定|百分之百|100%|绝对会|铁定|无疑会)")
-CITATION_STATE_RE = re.compile(r"(��(verified|pub|school|undated)）|\((verified|pub|school|undated)\)|"
-                               r"[，,]\s*(verified|pub|school|undated)\s*）|"
-                               r"流派口径|通行出处|无确证|原文核对|据《|云：「)")
+#: 只认「显式状态」：四级状态词，或四个中文口径词。`据《`、`云：` 不再算状态（v1.2 修）。
+STATUS_RE = re.compile(r"[（(]\s*(verified|pub|school|undated)\s*[）)]|"
+                       r"[，,]\s*(verified|pub|school|undated)\s*[）)]|"
+                       r"原文核对|通行出处|流派口径|无确证")
+#: 带书名的引用：《…》
+BOOK_RE = re.compile(r"《[^》]{1,30}》")
+#: 引文标记：据《 / 云： / 曰： / 说：
+CITE_MARK_RE = re.compile(r"(据\s*《|云\s*[:：]|曰\s*[:：])")
+#: 旧名保留，避免外部脚本 import 报错
+CITATION_STATE_RE = STATUS_RE
 WARNING_CODE_RE = re.compile(r"`?(SHICHEN_UNKNOWN|JIEQI_BOUNDARY|LATE_ZI|LEAP_MONTH|"
                              r"LONGITUDE_ESTIMATED|SCHOOL_VARIANT|LOW_CONFIDENCE|CLOCK_CHANGE)`?")
 UNCERTAIN_RE = re.compile(r"(未知|不确定|没给|缺少)")
@@ -58,10 +70,23 @@ RANDOM_RE = re.compile(r"(塔罗|抽牌|摇卦|六爻|起卦|coins|yarrow)")
 SEED_RE = re.compile(r"(seed|随机种子|回放)")
 
 #: S8 —— 判断词。「会」排除「机会/社会/学会/半会」这类非断语用法（否则误报太多）。
-JUDGMENT_RE = re.compile(r"(?<![机社学体领协年晚舞聚开闭半])会|必(?!须)|容易|适合|不宜|可得|难成|有望")
+JUDGMENT_RE = re.compile(r"(?<![机社学体领协年晚舞聚开闭半])会|必(?!须)|容易|适合|不宜|宜(?!忌)|可得|难成|有望")
 #: S8 —— basis 标注。四级出处状态（pub/verified/undated）不算 basis，只是引文状态；
-#: 行内常见写法有三种：全角括号、半角括号、句尾「，school）」。
+#: 行内常见写法有三种：全角括号、半角括号、句尾「，school）」、以及 basis: 前缀。
 BASIS_RE = re.compile(r"((calc|cited|school|model)\s*[）)]|[（(]\s*(calc|cited|school|model)\b|basis\s*[:：])")
+#: S8 —— 句子切分：中文句号/分号/感叹/问号 + 英文标点。
+SENT_SPLIT_RE = re.compile(r"[。；;！？!?]")
+#: S8 —— 表格分隔行（|---|:--:|）整行跳过。
+TABLE_SEP_RE = re.compile(r"^\s*\|?[\s:|-]+\|?\s*$")
+
+#: 显式严重度表：写在这里，CLI 与测试都读它，避免"注释说 ERROR、代码按 WARN"。
+RULES = {
+    "S1": "ERROR", "S2": "ERROR", "S3": "ERROR", "S4": "ERROR",
+    "S7": "ERROR", "S8": "ERROR", "S9": "ERROR",
+    "S5": "WARN", "S6": "WARN", "S10": "WARN",
+}
+ERROR_CODES = {k for k, v in RULES.items() if v == "ERROR"}
+WARN_CODES = {k for k, v in RULES.items() if v == "WARN"}
 #: S9 —— 巴纳姆历史断言：把通吃的往事说成"看过你的盘"（R4 明令禁止）。
 BARNUM_HISTORY_RE = re.compile(
     r"(大概率(曾)?有过|大概率(曾经)?经历过|大概有过|可能有过|可能经历过|"
@@ -93,9 +118,17 @@ def lint(text):
         if not re.search(pat, text):
             errors.append("S1 缺段落：%s" % name)
 
-    # S2 引文状态
-    if "《" in text and not CITATION_STATE_RE.search(text):
-        warns.append("S2 有引号书名但没有出处状态标注")
+    # S2 引文状态：逐行检查带书名的引用必须带显式状态（v1.2 修）
+    for i, line in enumerate(lines, 1):
+        if not BOOK_RE.search(line):
+            continue
+        if STATUS_RE.search(line):
+            continue
+        label = "引文缺状态"
+        if CITE_MARK_RE.search(line):
+            label = "引文（据《/云：）缺状态"
+        errors.append("S2 %s，第 %d 行：%s（补（verified）/（pub）/（school）/（undated））"
+                      % (label, i, line.strip()[:60]))
 
     # S3 红线
     for i, line in enumerate(lines, 1):
@@ -122,14 +155,29 @@ def lint(text):
         if re.search(r"(我是第.{0,4}代传人|祖师托梦|我感应到)", line):
             errors.append("S7 伪装师承/通灵，第 %d 行" % i)
 
-    # S8 规则判断段的断语要带 basis（只 WARN：判断词难免误伤，不因此判不合格）
+    # S8 规则判断段的断语要带 basis（v1.2：表格不再跳过；正文逐句判定；
+    #    一行里"一句有 basis、另一句没有"不再互相掩盖）
     for lineno, line in _section_lines(lines, SECTION_PATTERNS[1][1]):
-        if not line.strip() or line.lstrip().startswith(("|", ">", "#")):
+        if not line.strip() or line.lstrip().startswith((">", "#")):
             continue
-        m = JUDGMENT_RE.search(line)
-        if m and not BASIS_RE.search(line):
-            warns.append("S8 断语缺 basis「%s」，第 %d 行：%s（补（calc）/（cited）/（school）/（model）或 basis:）"
-                         % (m.group(0), lineno, line.strip()[:50]))
+        strip = line.strip()
+        if strip.startswith("|"):
+            if TABLE_SEP_RE.match(strip):
+                continue
+            # 表格：一行是一条记录，按行判定（避免"结论列有 basis、判断列没有"误伤整行）
+            m = JUDGMENT_RE.search(strip)
+            if m and not BASIS_RE.search(strip):
+                errors.append("S8 表格断语缺 basis「%s」，第 %d 行：%s"
+                              "（补（calc）/（cited）/（school）/（model）或 basis:）"
+                              % (m.group(0), lineno, strip[:50]))
+            continue
+        # 正文：逐句
+        for sentence in SENT_SPLIT_RE.split(strip):
+            m = JUDGMENT_RE.search(sentence)
+            if m and not BASIS_RE.search(sentence):
+                errors.append("S8 断语缺 basis「%s」，第 %d 行：%s"
+                              "（补（calc）/（cited）/（school）/（model）或 basis:）"
+                              % (m.group(0), lineno, sentence.strip()[:50]))
 
     # S9 巴纳姆历史断言（R4 明令禁止的句式，直接 ERROR）
     for i, line in enumerate(lines, 1):
@@ -142,6 +190,19 @@ def lint(text):
         warns.append("S10 提到塔罗/六爻/起卦，但没披露是谁起的手（补「不是用户亲手摇的」「代掷」「AI 起卦」「仅供反思」之一）")
 
     return errors, warns
+
+
+def summarize(errors, warns):
+    """按 S 编号统计，供 CLI 与测试使用。"""
+    def count(items):
+        out = {}
+        for item in items:
+            code = item.split(" ", 1)[0]
+            out[code] = out.get(code, 0) + 1
+        return dict(sorted(out.items()))
+    return {"errors": len(errors), "warns": len(warns),
+            "by_error": count(errors), "by_warn": count(warns),
+            "ok": not errors, "rules": RULES}
 
 
 def main(argv=None):
@@ -161,15 +222,17 @@ def main(argv=None):
             return 2
 
     errors, warns = lint(text)
+    stats = summarize(errors, warns)
     for w in warns:
         print("WARN  " + w)
     for e in errors:
         print("ERROR " + e)
     total = len(text.splitlines())
+    print("\n分类：ERROR %s ｜ WARN %s" % (stats["by_error"] or "无", stats["by_warn"] or "无"))
     if errors:
-        print("\n体检结果：%d 行文本，%d ERROR，%d WARN → 不合格" % (total, len(errors), len(warns)))
+        print("体检结果：%d 行文本，%d ERROR，%d WARN → 不合格" % (total, len(errors), len(warns)))
         return 1
-    print("\n体检结果：%d 行文本，0 ERROR，%d WARN → 通过" % (total, len(warns)))
+    print("体检结果：%d 行文本，0 ERROR，%d WARN → 通过" % (total, len(warns)))
     return 0
 
 

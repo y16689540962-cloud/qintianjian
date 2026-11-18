@@ -31,6 +31,18 @@ jobs:
       - name: 解读体检器自证有效（好样本必须过）
         run: python evals/lint_reading.py evals/samples/good.md
 
+      - name: install.sh 语法 + 安装/守卫冒烟（临时 HOME）
+        run: |
+          bash -n install.sh
+          TMP="$(mktemp -d)"
+          mkdir -p "$TMP/home"
+          env HOME="$TMP/home" ./install.sh "$TMP/skill" >/dev/null
+          test -f "$TMP/skill/SKILL.md"
+          if env HOME="$TMP/home" ./install.sh "$TMP/home" >/dev/null 2>&1; then
+            echo "::error::install.sh 竟然允许装到 HOME"; exit 1
+          fi
+          echo "安装成功且危险目标被拒绝"
+
       - name: 解读体检器自证有效（坏样本必须报错）
         run: |
           if python evals/lint_reading.py evals/samples/bad.md; then

@@ -23,7 +23,7 @@
 | 首屏放 GIF | deepseek | — | **后置**：先做「一条命令 + 预期输出」，GIF 是加分项不是卡点 |
 | issue 模板「报一个算错的盘」 | deepseek | — | **保留但后置**：star < 100 时没人用，等有用户再开 |
 | README 首屏 + About 双语关键词 | — | glm、kimi、mimo、minimax、deepseek（共识 5/5） | **先做（P0）** |
-| 把证据（216 单测 / 32 用例 / 哈希）链到第二屏 | — | glm、kimi、minimax | **先做（P0）** |
+| 把证据（260 单测 / 34 用例 / 哈希）链到第二屏 | — | glm、kimi、minimax | **先做（P0）** |
 
 ## 2. 三个模型指出的真缺口（我采纳）
 

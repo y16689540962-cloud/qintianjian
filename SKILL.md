@@ -28,7 +28,7 @@ description: >
 python3 scripts/xuan.py doctor          # 期望：8 个模块 OK + 「第三方依赖：无」
 python3 scripts/xuan.py calendar --date 1990-05-15
 # 期望首行：公历 1990-05-15（周二）；干支 庚午年 辛巳月 庚辰日
-python3 evals/run_evals.py             # 期望：32 passed, 0 failed
+python3 evals/run_evals.py             # 期望：34 passed, 0 failed, 0 errors
 ```
 
 三条跑通 = 装载正确。任何一条失败，**先修环境再解读**，不要在心算排盘上兜底。

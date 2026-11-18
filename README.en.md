@@ -12,7 +12,7 @@ python3 scripts/xuan.py doctor                                     # self-check,
 python3 scripts/bazi.py --solar 1990-05-15 --hour 12:00 --sex 男     # four pillars / luck cycles
 ```
 
-`216` unit tests · `32` end-to-end cases · evidence + file hashes in [`evals/evidence/`](evals/evidence/) ·
+`260` unit tests · `34` end-to-end cases · evidence + file hashes in [`evals/evidence/`](evals/evidence/) ·
 calendar cross-checked on all `91,676` days (1850–2100) against an independent implementation, with 7 disputed
 new moons arbitrated by the **USNO** moon-phase API
 
@@ -59,7 +59,7 @@ python3 ~/.claude/skills/qintianjian/scripts/xuan.py doctor
 ## Verify it yourself
 
 ```bash
-python3 -m unittest discover -s scripts/tests -q   # 216 tests
+python3 -m unittest discover -s scripts/tests -q   # 260 tests
 python3 evals/run_evals.py                        # 32 end-to-end cases
 python3 evals/lint_reading.py evals/samples/good.md
 ```

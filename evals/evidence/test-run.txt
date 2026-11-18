@@ -1,27 +1,27 @@
-# 测试与跑批真实输出 · 2026-11-18 07:03:49 CST
+# 测试与跑批真实输出 · 2026-11-18 21:50:43 CST · v1.2
 
 $ python3 -m unittest discover -s scripts/tests -q
 ----------------------------------------------------------------------
-Ran 216 tests in 2.809s
+Ran 260 tests in 6.218s
 
 OK
 
 $ python3 evals/run_evals.py
-PASS  cal-1863-01-19-boundary            [oracle-arbitrated]
-PASS  cal-1880-11-02-boundary            [oracle-arbitrated]
-PASS  cal-1896-02-13-boundary            [oracle-arbitrated]
+PASS  xuan-unknown-cmd                   [rule-verified]  0.03s
+PASS  bazi-bad-date                      [rule-verified]  0.03s
 
-=== 汇总：32 passed, 0 failed ===
+=== 汇总：34 passed, 0 failed, 0 errors（共 34 条）===
 
 $ python3 evals/lint_reading.py evals/samples/good.md
-
+分类：ERROR 无 ｜ WARN 无
 体检结果：46 行文本，0 ERROR，0 WARN → 通过
-
 $ python3 evals/lint_reading.py evals/samples/bad.md
-
-体检结果：11 行文本，11 ERROR，1 WARN → 不合格
+分类：ERROR {'S1': 5, 'S2': 1, 'S3': 2, 'S4': 3, 'S7': 1} ｜ WARN 无
+体检结果：11 行文本，12 ERROR，0 WARN → 不合格
+$ bash -n install.sh
+OK
 
 $ python3 scripts/xuan.py doctor
   fengshui  OK    1163 行 
   hehun     OK     345 行 
-第三方依赖：无（零依赖 ✅）
+结论：全部检查通过，零第三方依赖。

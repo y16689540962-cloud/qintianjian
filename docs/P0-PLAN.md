@@ -85,9 +85,25 @@
 
 ## 6. 交付核对清单
 
-- [ ] `python3 -m unittest discover -s scripts/tests -q` 全绿
-- [ ] `python3 evals/run_evals.py` 全绿（且负向用例确实校验错误码）
-- [ ] `python3 evals/lint_reading.py evals/samples/good.md` 通过；`bad.md` 报错
-- [ ] `bash -n install.sh` 通过；安装/卸载/守卫三类行为在临时目录验证
-- [ ] CI 新增 `bash -n install.sh` 步骤
-- [ ] 报告：文件清单 / 根因 / 行为差异 / 新增用例 / 实测输出 / 未解决项 / 是否发版
+- [x] `python3 -m unittest discover -s scripts/tests -q` 全绿（**260 tests OK**）
+- [x] `python3 evals/run_evals.py` 全绿（**34 passed, 0 failed, 0 errors**；负向用例校验错误码与文案）
+- [x] `python3 evals/lint_reading.py evals/samples/good.md` 通过（0 ERROR / 0 WARN）；`bad.md` 报错（12 ERROR，exit 1）
+- [x] `bash -n install.sh` 通过；安装/守卫/卸载/坏源四类行为在临时 HOME 下验证（见 `test_install_sh.py`）
+- [x] CI 新增 `bash -n install.sh` + 安装冒烟步骤
+- [x] 报告：见交付说明（文件清单 / 根因 / 行为差异 / 新增用例 / 实测输出 / 未解决项 / 是否发版）
+
+## 7. 结果（2026-11-18 实测）
+
+| 检查 | 修复前 | 修复后 |
+|---|---|---|
+| 模块缺失时的 doctor | `ok:true` / exit 0 | `ok:false` / exit 2，`failures` 指明 `module:tarot` |
+| 历法算错时的 doctor | 只查文件存在，不报 | 抽查 1990-05-15，答案不符即失败 |
+| 表格里的断语缺 basis | 0 ERROR（跳过表格） | S8 ERROR |
+| 「据《滴天髓》」无状态 | 0 WARN/ERROR（模糊引文算状态） | S2 ERROR |
+| 一行两句一句有 basis | 整行通过 | 逐句判定，缺的那句报 S8 |
+| 负向用例错误码写错 | 仍判 PASS（只看退出码） | 判 FAIL，指出 `error.code` 不符 |
+| 期望成功却退出 2 | 与普通失败混在一起 | 单独计为 `error`（基础设施问题） |
+| 安装后自检失败 | `|| true` 吞掉，exit 0 | 安装中止、exit 1、目标未被改动 |
+| 装到 skills 根目录 | 允许（会破坏其它 skill） | 拒绝，其它 skill 文件完好 |
+| 卸载任意目录 | `rm -rf` | 无标记即拒绝 |
+

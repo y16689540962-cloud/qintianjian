@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import ast
 import importlib
+from importlib import util as importlib_util
 import inspect
 import json
 import os
@@ -66,6 +67,118 @@ STDLIB_WHITELIST = {
 }
 LOCAL_MODULES = set(SUBCOMMANDS.values()) | {"calendar_core", "render", "tests"}
 
+# doctor 的判定素材：模块缺失、导入失败、历法内核失灵、第三方依赖、Python 版本，
+# 任意一项失败都算不通过（v1.2 修：此前只有"第三方依赖"参与 ok）。
+CALENDAR_PROBE = {"date": (1990, 5, 15), "lunar_month": 4, "lunar_day": 21, "day_ganzhi": "庚辰"}
+
+
+def _check_python(python_version=None):
+    """-> (ok, detail)。python_version 可注入，便于测试低版本行为。"""
+    v = tuple(python_version or sys.version_info[:3])
+    v = (v + (0, 0, 0))[:3]
+    return v >= (3, 9), "Python %d.%d.%d（要求 ≥3.9）" % v
+
+
+def _load_module(base_dir, modname):
+    """从 base_dir 独立加载模块，不依赖 sys.modules 里可能存在的别处副本。
+
+    返回 (module, error)。用唯一模块名加载，加载后清理，避免污染进程状态。
+    """
+    path = os.path.join(base_dir, modname + ".py")
+    unique = "_qxd_%s_%d" % (modname, os.getpid())
+    sys.path.insert(0, base_dir)
+    try:
+        spec = importlib_util.spec_from_file_location(unique, path)
+        if spec is None or spec.loader is None:
+            return None, "无法为 %s 建立加载器" % path
+        module = importlib_util.module_from_spec(spec)
+        sys.modules[unique] = module
+        spec.loader.exec_module(module)
+        return module, None
+    except Exception as exc:  # noqa: BLE001 - 自检要把任何异常变成一条可读原因
+        return None, "%s: %s" % (type(exc).__name__, exc)
+    finally:
+        sys.path.remove(base_dir)
+        sys.modules.pop(unique, None)
+
+
+def _check_calendar(base_dir):
+    """历法内核不只是"文件存在"：真算一组已知答案。只调用现有 API，不改历法逻辑。"""
+    module, err = _load_module(base_dir, "calendar_core")
+    if err:
+        return False, "calendar_core 无法加载：%s" % err
+    try:
+        import datetime as _dt
+        lunar = module.solar_to_lunar(*CALENDAR_PROBE["date"])
+        stem, branch = module.ganzhi_day(_dt.datetime(1990, 5, 15, 12, 0))
+        got = {"month": lunar.get("month"), "day": lunar.get("day"), "ganzhi": stem + branch}
+        want = {"month": CALENDAR_PROBE["lunar_month"], "day": CALENDAR_PROBE["lunar_day"],
+                "ganzhi": CALENDAR_PROBE["day_ganzhi"]}
+        if got != want:
+            return False, "历法抽查不符：期望 %s，实际 %s" % (want, got)
+        return True, "1990-05-15 → 农历%d月%d日 / %s" % (
+            got["month"], got["day"], got["ganzhi"])
+    except Exception as exc:  # noqa: BLE001
+        return False, "历法抽查抛错：%s: %s" % (type(exc).__name__, exc)
+
+
+def diagnose(base_dir=None, python_version=None):
+    """自检的纯函数版本：不做 I/O 输出，返回结构化结果，便于测试与复用。
+
+    ok 为 True 要求：Python 版本达标 + 全部必需模块存在且可加载 + 历法内核抽查通过 + 零第三方依赖。
+    """
+    base_dir = base_dir or HERE
+    failures, checks, modules = [], {}, {}
+
+    py_ok, py_detail = _check_python(python_version)
+    checks["python"] = {"ok": py_ok, "detail": py_detail}
+    if not py_ok:
+        failures.append({"check": "python", "detail": py_detail})
+
+    for cmd, modname in SUBCOMMANDS.items():
+        if not modname:
+            continue
+        path = os.path.join(base_dir, modname + ".py")
+        info = {"present": os.path.exists(path), "importable": False, "lines": 0}
+        if info["present"]:
+            with open(path, "r", encoding="utf-8") as fh:
+                info["lines"] = sum(1 for _ in fh)
+            _mod, err = _load_module(base_dir, modname)
+            info["importable"] = err is None
+            if err:
+                info["error"] = err
+                failures.append({"check": "module:%s" % modname, "detail": err})
+        else:
+            failures.append({"check": "module:%s" % modname,
+                             "detail": "缺少 %s.py（目录：%s）" % (modname, base_dir)})
+        modules[cmd] = info
+    checks["modules"] = {"ok": not any(not i["present"] or not i["importable"]
+                                       for i in modules.values()),
+                         "detail": "%d 个模块" % len(modules)}
+
+    cal_ok, cal_detail = _check_calendar(base_dir)
+    checks["calendar"] = {"ok": cal_ok, "detail": cal_detail}
+    if not cal_ok:
+        failures.append({"check": "calendar", "detail": cal_detail})
+
+    files = sorted(f for f in os.listdir(base_dir) if f.endswith(".py"))
+    third_party = {}
+    for f in files:
+        bad = _scan_third_party(os.path.join(base_dir, f))
+        if bad:
+            third_party[f] = bad
+    checks["third_party"] = {"ok": not third_party,
+                             "detail": "无" if not third_party else json.dumps(third_party, ensure_ascii=False)}
+    if third_party:
+        failures.append({"check": "third_party",
+                         "detail": "发现第三方依赖：%s" % json.dumps(third_party, ensure_ascii=False)})
+
+    return {"ok": not failures, "failures": failures, "checks": checks,
+            "modules": modules, "third_party_imports": third_party,
+            "has_calendar_core": os.path.exists(os.path.join(base_dir, "calendar_core.py")),
+            "python": sys.version.split()[0], "python_ok": py_ok, "base_dir": base_dir}
+
+
 
 def _emit(payload: dict, as_json: bool, text: str = "") -> None:
     if as_json:
@@ -100,7 +213,10 @@ def _calendar_result(date_str=None, lunar=None, leap=False, year=None) -> dict:
             y, m, d = [int(x) for x in date_str.replace("/", "-").split("-")]
         except ValueError:
             raise ValueError("日期格式应为 YYYY-MM-DD，收到：%s" % date_str)
-        base_dt = cc.datetime(y, m, d, 12, 0)
+        try:
+            base_dt = cc.datetime(y, m, d, 12, 0)
+        except ValueError:
+            raise ValueError("日期不存在：%04d-%02d-%02d" % (y, m, d))
         result["solar"] = "%04d-%02d-%02d" % (y, m, d)
         result["lunar"] = cc.solar_to_lunar(y, m, d)
     elif lunar:
@@ -210,59 +326,42 @@ def _scan_third_party(path: str) -> list:
 
 
 def _doctor(as_json: bool) -> int:
-    files = sorted(f for f in os.listdir(HERE) if f.endswith(".py"))
-    modules = {}
-    for cmd, modname in SUBCOMMANDS.items():
-        if not modname:
-            continue
-        path = os.path.join(HERE, modname + ".py")
-        info = {"present": os.path.exists(path), "importable": False, "lines": 0, "third_party": []}
-        if info["present"]:
-            with open(path, "r", encoding="utf-8") as fh:
-                info["lines"] = sum(1 for _ in fh)
-            info["third_party"] = _scan_third_party(path)
-            try:
-                importlib.import_module(modname)
-                info["importable"] = True
-            except Exception as exc:  # noqa: BLE001
-                info["error"] = "%s: %s" % (type(exc).__name__, exc)
-        modules[cmd] = info
-
-    third_party = {}
-    for f in files:
-        bad = _scan_third_party(os.path.join(HERE, f))
-        if bad:
-            third_party[f] = bad
-
+    report = diagnose()
     payload = {
-        "ok": not third_party,
+        "ok": report["ok"],
         "schema_version": SCHEMA_VERSION,
         "cmd": "doctor",
         "engine": ENGINE,
         "result": {
-            "python": sys.version.split()[0],
-            "python_ok": sys.version_info >= (3, 9),
-            "skill_dir": HERE,
-            "modules": modules,
-            "third_party_imports": third_party,
-            "has_calendar_core": os.path.exists(os.path.join(HERE, "calendar_core.py")),
+            "python": report["python"],
+            "python_ok": report["python_ok"],
+            "skill_dir": report["base_dir"],
+            "checks": report["checks"],
+            "modules": report["modules"],
+            "third_party_imports": report["third_party_imports"],
+            "has_calendar_core": report["has_calendar_core"],
+            "failures": report["failures"],
         },
         "warnings": [],
         "seed": None,
     }
 
-    lines = ["钦天监自检 · engine=%s · python=%s" % (ENGINE, sys.version.split()[0])]
-    lines.append("目录：%s" % HERE)
-    for cmd, info in modules.items():
+    lines = ["钦天监自检 · engine=%s · python=%s" % (ENGINE, report["python"])]
+    lines.append("目录：%s" % report["base_dir"])
+    for name, chk in report["checks"].items():
+        lines.append("  [%s] %-12s %s" % ("OK" if chk["ok"] else "FAIL", name, chk["detail"]))
+    for cmd, info in report["modules"].items():
         state = "OK" if info.get("importable") else ("缺失" if not info["present"] else "导入失败")
         lines.append("  %-9s %-4s %5d 行 %s" % (cmd, state, info.get("lines", 0),
                                                info.get("error", "")))
-    if third_party:
-        lines.append("第三方依赖（应为空）：%s" % json.dumps(third_party, ensure_ascii=False))
+    if report["failures"]:
+        lines.append("失败原因（%d 项）：" % len(report["failures"]))
+        for f in report["failures"]:
+            lines.append("  - %s：%s" % (f["check"], f["detail"]))
     else:
-        lines.append("第三方依赖：无（零依赖 ✅）")
+        lines.append("结论：全部检查通过，零第三方依赖。")
     _emit(payload, as_json, "\n".join(lines))
-    return 0 if payload["ok"] else 2
+    return 0 if report["ok"] else 2
 
 
 # --------------------------------------------------------------------------

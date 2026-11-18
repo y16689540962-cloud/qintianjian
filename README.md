@@ -12,7 +12,7 @@ python3 scripts/xuan.py doctor                                   # 零依赖自�
 python3 scripts/bazi.py --solar 1990-05-15 --hour 12:00 --sex 男   # 四柱 / 大运 / 流年
 ```
 
-`216` 条单元测试 · `32` 条端到端用例 · 证据与文件哈希在 [`evals/evidence/`](evals/evidence/) ·
+`260` 条单元测试 · `34` 条端到端用例 · 证据与文件哈希在 [`evals/evidence/`](evals/evidence/) ·
 历法 1850–2100 全量 `91,676` 天外部比对（7 个月首经 USNO 月相 API 仲裁）
 
 > 边界：不判生死、不做疾病诊断、不判官司胜负、不给股价买卖点、不测胎儿性别、不替你做不可逆决定。
@@ -150,7 +150,7 @@ python3 scripts/hehun.py --a-solar 1990-05-15 --a-hour 12:00 --a-sex 男 \
 | `tarot` 抽牌 | 无 oracle；seed 决定论 + 78 张牌库与文档逐字一致 | 结构级 |
 | `hehun` 合婚关系 | 依赖 `bazi` + 通行关系表 | 规则级自洽 |
 
-**回归规模**：`scripts/tests/` **216 个 unittest**（全绿）· `evals/cases.jsonl` **32 条端到端用例**（全绿，每条标 `oracle-verified` / `rule-verified` / `oracle-arbitrated` / `unverified`）。
+**回归规模**：`scripts/tests/` **260 个 unittest**（全绿）· `evals/cases.jsonl` **34 条端到端用例**（全绿，每条标 `oracle-verified` / `rule-verified` / `oracle-arbitrated` / `unverified`）。
 
 **证据可重放**：测试输出全文、历法与紫微的比对方法、文件哈希都在 [`evals/evidence/`](evals/evidence/)——不是「作者说跑过」，是把命令和结果一起放进仓库。
 

@@ -1,4 +1,4 @@
-# sha256 · 2026-11-18 · 生成命令：shasum -a 256 scripts/*.py references/*.md | sort
+# sha256 · 2026-11-18 · v1.2 · 生成命令：shasum -a 256 scripts/*.py references/*.md | sort
 05161fc3d9c734710c078540580ff4a29c1177ce49058c475662f5fc49b6b1fd  scripts/tarot.py
 0ce163eba4bc05a7318f2438e45a2bd2aa9099093933d7d238a8efd05457eab6  references/synthesis.md
 12e2a02793ace0013c23694f6c7ef5f01c612cda37b001b593b9daf0ed8b45cc  references/marriage.md
@@ -9,6 +9,7 @@
 4bf6fac07b02e669f914f2ac193670cde14ae20fca316f4e150c8ea7d7680352  scripts/calendar_core.py
 4e9c87c037dc91d3aa565b2af6b842f2c2dfe5e744b89878d451b14a61f9e93d  references/zeri.md
 50c17d3b38475b87948a3b9f6be4dca782c6e1f047abb0b6ee7a84c991602ae3  references/routing.md
+51b4a22fb571c176fafb359b893f674dc6c654948f633d9b25ab3768766df2be  scripts/xuan.py
 63f12d6f97d4f20e13df0393a91624b55c819c3814a048e6faf0843600feb52a  references/ziwei.md
 6e3ba7ed16a2ceeaa20c81d1d73e22f385a399652adfacd98371b09e42dfce28  references/sources.md
 90d2204f20aa1b60c6a2fa5a9218ca2b50b0d72a3a34ebc9cf26c37c2314b80e  references/liuyao.md
@@ -21,5 +22,4 @@ c3eacc2326b76cee52d34e04a037027f63d69f5164298f948175c62ae974ff17  scripts/fengsh
 dc3fe5ecc28e15ec9d6196b2a654884a7399c360780424f14f3755c63b454bc5  references/tarot.md
 e3c517394e24d9e0e7f3bd2a5e737943606eae6da9c209b0b57bf40fa8be72f3  references/bazi.md
 e84f0d242dc00cab2de2428329c5765ad9ab4a216db68f5b5105f929ecd2e695  references/qimen.md
-ec2a8ae6afce609ac629054fdc7ef5c81010760d867a90d0548c91a97546e9bd  scripts/xuan.py
 fef66f95087130b03977529661cd67b7128ff5d69fdc9468f67136fcfb231f2e  scripts/qimen.py

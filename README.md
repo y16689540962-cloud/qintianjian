@@ -1,5 +1,8 @@
 # 钦天监 · Qintianjian
 
+[![ci](https://github.com/y16689540962-cloud/qintianjian/actions/workflows/ci.yml/badge.svg)](https://github.com/y16689540962-cloud/qintianjian/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-blue)](LICENSE)
+
 [English](README.en.md) · **简体中文**
 
 **九术合一的中文术数 Agent Skill：排盘由零依赖 Python 算，不由模型猜；每条判断标出处等级；算不出来就直说。**

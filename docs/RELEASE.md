@@ -75,12 +75,12 @@ feng-shui, tarot, iching, divination, zero-dependency, python, deterministic
 
 ## 6. 发布前要替换的占位符
 
-README 顶部加 CI badge（把 `<owner>` 换掉）：
+README 顶部加 CI badge（把 `y16689540962-cloud` 换掉）：
 
 ```markdown
-[![ci](https://github.com/<owner>/qintianjian/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/qintianjian/actions/workflows/ci.yml)
+[![ci](https://github.com/y16689540962-cloud/qintianjian/actions/workflows/ci.yml/badge.svg)](https://github.com/y16689540962-cloud/qintianjian/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-blue)](LICENSE)
 ```
 
-README.en.md 里的 `<repo-url>`、`<owner>` 两处也要替换；`docs/INSTALL-TEST.md` §2 的「未验证」保持原样，
+README.en.md 里的 `https://github.com/y16689540962-cloud/qintianjian`、`y16689540962-cloud` 两处也要替换；`docs/INSTALL-TEST.md` §2 的「未验证」保持原样，
 发布说明里照抄——**别把没测过的平台写成支持**。

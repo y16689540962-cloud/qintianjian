@@ -1,5 +1,8 @@
 # Qintianjian · 钦天监
 
+[![ci](https://github.com/y16689540962-cloud/qintianjian/actions/workflows/ci.yml/badge.svg)](https://github.com/y16689540962-cloud/qintianjian/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-blue)](LICENSE)
+
 [简体中文](README.md) · **English**
 
 **An auditable Chinese astrology & divination agent skill. Every chart is computed by zero-dependency Python — never guessed by the model. Every claim is source-graded. When it cannot compute something, it says so.**
@@ -32,7 +35,7 @@ new moons arbitrated by the **USNO** moon-phase API
 Clone the repo (or copy it) into your agent's skills directory:
 
 ```bash
-git clone <repo-url> qintianjian
+git clone https://github.com/y16689540962-cloud/qintianjian.git qintianjian
 cp -R qintianjian ~/.claude/skills/qintianjian      # Claude Code
 # or: ~/.dsh/skills/qintianjian (DSH) · ~/.codex/skills/qintianjian (Codex)
 python3 ~/.claude/skills/qintianjian/scripts/xuan.py doctor

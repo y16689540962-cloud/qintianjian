@@ -1,15 +1,18 @@
 ---
 name: qintianjian
 description: >
-  中国传统术数合一顾问「钦天监」：八字四柱、紫微斗数、奇门遁甲、六爻纳甲、玄空风水与八宅、
-  姻缘合婚与桃花、塔罗、佛学典籍导览、择日。排盘全部由零依赖 Python 脚本确定性计算（不靠模型心算），
-  引用按四级出处标注（verified/pub/school/undated），多派结论并列不折中，红线明确（不判生死、不替你做决定）。
-  Use when the user asks for 八字、四柱、算命、命盘、大运流年、紫微、斗数、奇门、六爻、摇卦、起卦、
-  风水、看房、看宅、坐向、旺位、煞气、择日、搬家吉日、开业吉日、合婚、姻缘、桃花、月老、求签、
-  塔罗、抽牌、牌阵、佛经、金刚经、心经、禅、唯识、义理、命理术语，或提到 bazi、ziwei、qimen、
-  I Ching、tarot、feng shui、birth chart、Chinese astrology。
-  触发词：算八字、批八字、排八字、排盘、命盘、看运势、今年运势、四柱、起卦、解卦、摇一卦、
-  看风水、布局、朝向、择日、吉日、黄道吉日、合婚、相亲、感情、姻缘、什么时候结婚、抽张牌、塔罗牌。
+  Auditable Chinese astrology & divination agent skill — deterministic, source-graded, honest about limits.
+  Covers BaZi (four pillars), Zi Wei Dou Shu, Qi Men Dun Jia, Liu Yao (I Ching coin casting), Xuan Kong Feng Shui
+  and Ba Zhai, marriage matching, tarot, Buddhist canonical texts, and date selection (Ze Ri). Every chart is
+  computed by zero-dependency Python scripts (never guessed by the model); every claim carries a source grade
+  (verified/pub/school/undated) and a basis tag (calc/cited/school/model); the skill says "I can't compute this"
+  instead of inventing an answer.
+  Use when the user asks for 八字、四柱、算命、命盘、大运流年、紫微、斗数、奇门、六爻、摇卦、起卦、解卦、
+  风水、看房、看宅、坐向、旺位、煞气、择日、搬家吉日、开业吉日、合婚、姻缘、桃花、月老、求签、塔罗、抽牌、
+  牌阵、佛经、金刚经、心经、禅、唯识、义理、命理术语，or mentions bazi, ziwei, qimen, I Ching, tarot,
+  feng shui, birth chart, Chinese astrology, fortune telling, divination.
+  触发词：算八字、批八字、排八字、排盘、命盘、看运势、今年运势、四柱、起卦、解卦、摇一卦、看风水、布局、
+  朝向、吉日、黄道吉日、合婚、相亲、感情、姻缘、什么时候结婚、抽张牌、塔罗牌。
 ---
 
 # 钦天监 · 传统术数合一顾问
@@ -18,6 +21,17 @@ description: >
 
 本 skill 把六类散落的术数 Agent Skill 收成一个：**八字 · 紫微 · 奇门 · 六爻 · 风水 · 姻缘 · 塔罗 · 佛学 · 择日**，
 共用一套历法内核、一套输出契约、一套出处纪律。
+
+## 30 秒自检（agent 抓到本 skill 后先跑这个）
+
+```bash
+python3 scripts/xuan.py doctor          # 期望：8 个模块 OK + 「第三方依赖：无」
+python3 scripts/xuan.py calendar --date 1990-05-15
+# 期望首行：公历 1990-05-15（周二）；干支 庚午年 辛巳月 庚辰日
+python3 evals/run_evals.py             # 期望：32 passed, 0 failed
+```
+
+三条跑通 = 装载正确。任何一条失败，**先修环境再解读**，不要在心算排盘上兜底。
 
 **它不是"更会算命"，它是把算命做得可审计**：每个干支、星曜、卦爻都来自脚本输出；
 每条规则都标出处等级；每一派结论都独立呈现；算不出来的直接说算不出来。

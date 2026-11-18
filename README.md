@@ -1,13 +1,18 @@
 # 钦天监 · Qintianjian
 
-> 把八字、紫微、奇门、六爻、风水、姻缘、塔罗、佛学、择日收进**同一个** Agent Skill。
-> 排盘全部由零依赖 Python 脚本确定性完成；每条规则标出处等级；多派结论并列不折中；红线写死。
+[English](README.en.md) · **简体中文**
+
+**九术合一的中文术数 Agent Skill：排盘由零依赖 Python 算，不由模型猜；每条判断标出处等级；算不出来就直说。**
 
 ```bash
-python3 scripts/xuan.py doctor                       # 自检
-python3 scripts/bazi.py --solar 1990-05-15 --hour 12:00 --sex 男
-python3 scripts/tarot.py --spread three --seed 42
+python3 scripts/xuan.py doctor                                   # 零依赖自检，10 秒
+python3 scripts/bazi.py --solar 1990-05-15 --hour 12:00 --sex 男   # 四柱 / 大运 / 流年
 ```
+
+`216` 条单元测试 · `32` 条端到端用例 · 证据与文件哈希在 [`evals/evidence/`](evals/evidence/) ·
+历法 1850–2100 全量 `91,676` 天外部比对（7 个月首经 USNO 月相 API 仲裁）
+
+> 边界：不判生死、不做疾病诊断、不判官司胜负、不给股价买卖点、不测胎儿性别、不替你做不可逆决定。
 
 ---
 

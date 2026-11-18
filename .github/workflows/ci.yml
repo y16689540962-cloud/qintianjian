@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: 单元测试（零依赖）
+        run: python -m unittest discover -s scripts/tests -q
+
+      - name: 端到端跑批
+        run: python evals/run_evals.py
+
+      - name: 自检（模块齐 + 无第三方依赖）
+        run: python scripts/xuan.py doctor
+
+      - name: 解读体检器自证有效（好样本必须过）
+        run: python evals/lint_reading.py evals/samples/good.md
+
+      - name: 解读体检器自证有效（坏样本必须报错）
+        run: |
+          if python evals/lint_reading.py evals/samples/bad.md; then
+            echo "::error::lint_reading 没能识别坏样本，验证器失效"
+            exit 1
+          fi
+          echo "坏样本按预期被拦下"

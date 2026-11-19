@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>钦天监 · 八字排盘</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="dc.css">
+<style>
+/* ─────────────────────────────────────────────
+   单页版：输入卡 + 全部盘面板块。
+   UI 语义沿用 dc.css，这里只补它没有的部分。
+   ───────────────────────────────────────────── */
+:root{
+  --wheel-h: 200px;      /* 5 行可视 */
+  --row-h: 40px;
+}
+
+/* 整页数据到位后淡入（含 3 秒兜底，防 JS 意外导致空白） */
+.page{ opacity:0; transform:translateY(6px);
+       transition:opacity .35s ease, transform .35s cubic-bezier(.22,.61,.36,1); }
+body.loaded .page{ opacity:1; transform:none; }
+@media (prefers-reduced-motion: reduce){ .page{ transition:none; } }
+
+/* ── 输入卡：五轮盘一行 ── */
+.wheel-row{
+  display:flex; align-items:center; justify-content:center;
+  gap:10px; padding:14px 0 2px; flex-wrap:wrap;
+}
+.wheel{
+  position:relative; flex:1 1 auto; min-width:56px; width:100%;
+  height:var(--wheel-h); overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom,
+    transparent 0, #000 22%, #000 78%, transparent 100%);
+  mask-image:linear-gradient(to bottom,
+    transparent 0, #000 22%, #000 78%, transparent 100%);
+}
+.wheel::after{
+  content:""; position:absolute; left:0; right:0; top:50%;
+  height:var(--row-h); transform:translateY(-50%);
+  background:rgba(0,0,0,.055); border-radius:11px;
+  pointer-events:none; z-index:0;
+}
+.wheel .track{
+  position:absolute; left:0; right:0; top:0;
+  will-change:transform; z-index:1;
+  transition:transform .28s cubic-bezier(.22,.61,.36,1);
+}
+.wheel .track.drag{ transition:none; }
+.wheel .item{
+  height:var(--row-h); display:flex; align-items:center; justify-content:center;
+  font:400 21px/1 -apple-system,"SF Pro Display","PingFang SC",sans-serif;
+  font-variant-numeric:tabular-nums; letter-spacing:-.01em;
+  color:var(--t1); user-select:none; cursor:default;
+  transition:opacity .18s, font-weight .18s, color .18s;
+}
+.wheel .item.sel{ font-weight:500; }
+.wheel .item.dim{ opacity:.28; }
+.wheel .unit{
+  font:400 15px/1 -apple-system,"PingFang SC",sans-serif;
+  color:var(--t2); padding-bottom:2px; flex:none; width:20px; text-align:left;
+}
+.wheel-wrap{
+  position:relative; background:var(--bg); border-radius:14px;
+  box-shadow:inset 0 0 0 1px var(--line);
+  display:flex; align-items:center; padding:0 8px;
+  height:var(--wheel-h); flex:1 1 0; min-width:96px;
+}
+.wheel-wrap.disabled{ opacity:.4; pointer-events:none; }
+
+/* 性别选择 */
+.sex-row{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.sex-row .lab{ font-size:13px; color:var(--t2); flex:none; width:56px; }
+.sex-row .seg{ display:flex; gap:6px; }
+.sex-row .seg button{
+  font:inherit; font-size:13.5px; padding:7px 22px; border:0; border-radius:10px;
+  background:rgba(0,0,0,.045); color:var(--t2); cursor:pointer;
+  transition:background .16s, color .16s;
+}
+.sex-row .seg button:hover{ background:rgba(0,0,0,.08); }
+.sex-row .seg button.on{ background:var(--t1); color:#fff; }
+.sex-row .why{ margin-left:auto; font-size:11.5px; color:var(--t3); }
+
+/* 不确定开关 */
+.vague-bar{
+  display:flex; align-items:center; gap:10px;
+  padding:11px 16px; background:var(--warn-bg); border-radius:12px;
+  font-size:13px; color:var(--warn);
+}
+.vague-bar input{ width:17px; height:17px; accent-color:var(--warn); }
+.vague-bar .hint{ margin-left:auto; font-size:12px; opacity:.85; }
+
+/* 十二时辰选择条 */
+.shichen-strip{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:12px; }
+.shichen-strip button{
+  font:inherit; font-size:12.5px; padding:8px 4px; border:0; border-radius:10px;
+  background:rgba(0,0,0,.045); color:var(--t2); cursor:pointer;
+  transition:background .16s, color .16s;
+}
+.shichen-strip button small{ display:block; font-size:10px; opacity:.7; margin-top:2px; }
+.shichen-strip button:hover{ background:rgba(0,0,0,.08); }
+.shichen-strip button.on{ background:var(--t1); color:#fff; }
+.shichen-strip button.on small{ opacity:.75; }
+
+/* 按压反馈与焦点 */
+.sex-row .seg button:active{ transform:scale(.95); }
+.shichen-strip button:active{ transform:scale(.94); }
+.btn:disabled{ opacity:.55; cursor:default; transform:none !important; }
+.btn.pri{ padding:9px 26px; font-size:14px; }
+:is(button, a, .wheel):focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px; border-radius:10px;
+}
+
+/* 操作行 */
+.picker-actions{ display:flex; gap:10px; align-items:center; margin-top:14px; }
+.picker-actions .now{ margin-left:auto; font-size:12px; color:var(--t3); }
+
+/* hidden 属性优先级兜底（dc.css 的 .panel 会盖掉 UA 的 display:none） */
+[hidden]{ display:none !important; }
+
+/* 结果出现时的入场动画 */
+@keyframes rise { from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+.rise{ animation:rise .32s cubic-bezier(.22,.61,.36,1); }
+@media (prefers-reduced-motion: reduce){ .rise{ animation:none; } }
+
+/* ── 盘面板块：层级 ── */
+#result{ margin-top:8px; }
+.gz { font-size:17px; letter-spacing:.5px; }
+
+/* ① 结论卡：全页主角 */
+.feat { padding:28px 30px 24px !important;
+        box-shadow:0 4px 24px rgba(0,0,0,.09), 0 1px 4px rgba(0,0,0,.05) !important; }
+.feat .ph h3 { font-size:13px; letter-spacing:.12em; color:var(--t3); font-weight:600; }
+.feat .read .lead-line { font-size:19px; line-height:1.65; padding-bottom:16px; margin-bottom:16px; }
+.feat .read p { font-size:15px; }
+
+/* ② 四柱：主内容 */
+.prime .gz { font-size:21px; letter-spacing:1px; }
+.prime td, .prime th { padding:13px 12px; }
+
+/* ③ 次要板块 */
+.sec.minor h2 { font-size:15px; color:var(--t2); font-weight:600; }
+.sec.minor .note { font-size:11.5px; }
+.minor-body .panel, .panel.flat { box-shadow:none; border:1px solid var(--line); }
+
+/* 五行条 */
+.wx-row { display:flex; align-items:center; gap:12px; padding:7px 0; }
+.wx-row .nm { width:20px; font-size:14px; color:var(--t1); }
+.wx-row .bar { flex:1; height:7px; background:var(--bg); border-radius:4px; overflow:hidden; }
+.wx-row .bar i { display:block; height:100%; border-radius:4px; }
+.wx-row .num { width:104px; text-align:right; font-size:12.5px; color:var(--t2);
+               font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+/* 解读文本 */
+.read { font-size:14px; line-height:1.85; color:var(--t2); }
+.read p { margin:0 0 12px; }
+.read p:last-child { margin-bottom:0; }
+.read b { color:var(--t1); font-weight:600; }
+.read .lead-line { color:var(--t1); border-bottom:1px solid var(--line); }
+
+/* 时间口径：一行条 */
+.time-strip { font-size:12px; color:var(--t3); line-height:1.7;
+              padding:10px 16px; border:1px dashed var(--line); border-radius:10px;
+              margin-top:26px; }
+.time-strip b { color:var(--t2); font-weight:500; }
+</style>
+</head>
+<body>
+<div class="bgfx" aria-hidden="true"></div>
+<main class="page">
+
+  <div class="top">
+    <div class="logo">钦天监</div>
+  </div>
+
+  <h1 class="h1">八字排盘</h1>
+  <p class="lead">输入出生时间，这一页看完你的整个盘。</p>
+
+  <!-- ══ 输入卡 ══ -->
+  <div class="panel" style="padding:16px 20px 18px">
+    <div class="ph"><h3>出生时间</h3><span class="note">公历</span></div>
+
+    <div class="sex-row">
+      <span class="lab">性别</span>
+      <div class="seg" id="sex-seg" role="group" aria-label="性别">
+        <button type="button" data-sex="男" class="on" aria-pressed="true">男</button>
+        <button type="button" data-sex="女" aria-pressed="false">女</button>
+      </div>
+      <span class="why">影响人生阶段运势的排法</span>
+    </div>
+
+    <label class="vague-bar">
+      <input type="checkbox" id="vague">
+      <span><b>只记得大概几点</b>　没关系，按时辰算</span>
+      <span class="hint">不用编造分钟</span>
+    </label>
+
+    <div class="wheel-row">
+      <div class="wheel-wrap" id="wrap-year">
+        <div class="wheel" data-col="year" role="listbox" aria-label="年"></div>
+        <span class="unit">年</span>
+      </div>
+      <div class="wheel-wrap" id="wrap-month">
+        <div class="wheel" data-col="month" role="listbox" aria-label="月"></div>
+        <span class="unit">月</span>
+      </div>
+      <div class="wheel-wrap" id="wrap-day">
+        <div class="wheel" data-col="day" role="listbox" aria-label="日"></div>
+        <span class="unit">日</span>
+      </div>
+      <div class="wheel-wrap" id="wrap-hour">
+        <div class="wheel" data-col="hour" role="listbox" aria-label="时"></div>
+        <span class="unit">时</span>
+      </div>
+      <div class="wheel-wrap" id="wrap-minute">
+        <div class="wheel" data-col="minute" role="listbox" aria-label="分"></div>
+        <span class="unit">分</span>
+      </div>
+    </div>
+
+    <!-- 不确定模式下用它选时辰 -->
+    <div id="shichen-box" hidden>
+      <div class="sect" style="margin:14px 0 6px">时辰</div>
+      <div class="shichen-strip" id="shichen-strip"></div>
+    </div>
+
+    <div class="picker-actions">
+      <button class="btn pri" id="go">排盘</button>
+      <span class="now" id="preview"></span>
+    </div>
+  </div>
+
+  <!-- ══ 结果：全部板块（首次排盘前隐藏，先填再看） ══ -->
+  <div class="panel" id="empty-state" style="margin-top:22px;padding:34px 24px;text-align:center">
+    <div style="font-size:15px;color:var(--t1);font-weight:600">还没有盘</div>
+    <div style="font-size:13px;color:var(--t3);margin-top:6px">
+      上面选好出生时间和性别，点「排盘」，这一页就会长出你的整个盘。
+    </div>
+  </div>
+  <div id="result" hidden>
+
+    <!-- ① 一句话结论 -->
+    <div class="panel feat" style="margin-top:22px">
+      <div class="ph"><h3>这 张 盘 在 说 什 么</h3><span class="note" id="verdict-note"></span></div>
+      <div class="read" id="verdict"><p style="color:var(--t3)">—</p></div>
+    </div>
+
+    <!-- ② 四柱 -->
+    <div class="sec"><h2>四柱</h2><span class="note" id="pillars-note"></span></div>
+    <div class="panel prime" style="padding:6px 20px">
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th scope="col">柱</th><th scope="col">干支</th>
+            <th scope="col">藏干</th><th scope="col">十神</th><th scope="col">纳音</th>
+          </tr></thead>
+          <tbody id="pillars-body">
+            <tr><td colspan="5" style="color:var(--t3)">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ③ 五行 -->
+    <div class="sec minor"><h2>五行</h2><span class="note">看你命里什么多、什么少</span></div>
+    <div class="grid g2 minor-body">
+      <div class="panel" style="padding:16px 20px">
+        <div class="ph" style="padding-top:0"><h3>五行强弱</h3><span class="note" id="wx-note"></span></div>
+        <div id="wx-body"><div class="state"><span class="d">—</span></div></div>
+      </div>
+      <div class="panel" style="padding:16px 20px">
+        <div class="ph" style="padding-top:0"><h3>读完这张盘</h3></div>
+        <div class="read" id="wx-read" style="font-size:13.5px">
+          <p style="color:var(--t3)">—</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ 大运 -->
+    <div class="sec minor"><h2>大运</h2><span class="note" id="dayun-note"></span></div>
+    <div class="panel flat" style="padding:16px 20px">
+      <div class="ph" style="padding-top:0"><h3>前六步</h3><span class="note" id="dayun-dir"></span></div>
+      <div class="kv" id="dayun-body"><div class="state"><span class="d">—</span></div></div>
+    </div>
+
+    <!-- ⑤ 神煞 -->
+    <div class="sec minor"><h2>神煞</h2><span class="note">命里带的特殊格局</span></div>
+    <div class="panel flat" style="padding:16px 20px">
+      <div class="ins" id="shensha-body"><div class="state"><span class="d">—</span></div></div>
+    </div>
+
+    <!-- ⑥ 时间口径：一行条 -->
+    <div class="time-strip" id="time-note">—</div>
+
+    <p class="cap" style="margin-top:18px;font-size:12px;color:var(--t3);line-height:1.7">
+      排盘由固定程序算出，同样输入必得同样结果。
+      测试通过只证明程序在既定条件下符合预期，
+      <b>不代表传统术数具有可验证的现实预测力</b>。
+      不判生死、不做疾病诊断、不判官司胜负、不给投资建议。
+    </p>
+  </div>
+
+</main>
+
+<script>
+"use strict";
+const ROW_H = 40;
+const VISIBLE = 5;
+const PAD = Math.floor(VISIBLE / 2);
+const DRAG_GAIN = 0.55;
+const TICK_MIN_MS = 26;
+
+const RANGES = {
+  year:   () => range(1900, 2100),
+  month:  () => range(1, 12),
+  day:    () => range(1, 31),
+  hour:   () => range(0, 23),
+  minute: () => range(0, 59),
+};
+const pad2 = n => String(n).padStart(2, "0");
+const range = (a, b) => Array.from({length: b - a + 1}, (_, i) => a + i);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ── 初始状态：URL 参数优先，否则今天 12:00 ── */
+const __q = new URLSearchParams(location.search);
+const __today = new Date();
+function clampNum(v, lo, hi, fallback) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fallback;
+}
+let __init = {
+  year: __today.getFullYear(), month: __today.getMonth() + 1, day: __today.getDate(),
+  hour: 12, minute: 0, vague: false, shichen: "午", sex: "男",
+};
+if (__q.get("date")) {
+  const m = String(__q.get("date")).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) {
+    __init.year = clampNum(m[1], 1900, 2100, __init.year);
+    __init.month = clampNum(m[2], 1, 12, __init.month);
+    __init.day = clampNum(m[3], 1, 31, __init.day);
+  }
+  if (__q.get("vague") === "1" && __q.get("shichen")) {
+    __init.vague = true; __init.shichen = __q.get("shichen");
+  } else if (__q.get("hour")) {
+    const hm = String(__q.get("hour")).match(/^(\d{1,2}):(\d{1,2})$/);
+    if (hm) {
+      __init.hour = clampNum(hm[1], 0, 23, 12);
+      __init.minute = clampNum(hm[2], 0, 59, 0);
+    }
+  }
+  if (__q.get("sex") === "女") __init.sex = "女";
+}
+const state = { ...__init };
+
+/* ── 刻度音：Web Audio 合成 ── */
+const Ticker = (() => {
+  let ctx = null, lastAt = 0, muted = false;
+  let noiseBuf = null;
+
+  function ensure() {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    const len = Math.floor(ctx.sampleRate * 0.02);
+    noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    }
+    return ctx;
+  }
+  function unlock() {
+    const c = ensure();
+    if (c && c.state === "suspended") c.resume();
+  }
+  function tick(strength = 0.6) {
+    if (muted) return;
+    const c = ensure();
+    if (!c || !noiseBuf) return;
+    if (c.state === "suspended") { c.resume(); return; }
+    const now = performance.now();
+    if (now - lastAt < TICK_MIN_MS) return;
+    lastAt = now;
+    const t = c.currentTime;
+    const src = c.createBufferSource();
+    src.buffer = noiseBuf;
+    const hp = c.createBiquadFilter();
+    hp.type = "highpass"; hp.frequency.value = 1800; hp.Q.value = 0.7;
+    const bp = c.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 2400 + (strength - 0.5) * 1200; bp.Q.value = 1.2;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.16 * strength, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    src.connect(hp).connect(bp).connect(g).connect(c.destination);
+    src.start(t); src.stop(t + 0.05);
+  }
+  return { tick, unlock, setMuted(v) { muted = v; }, get muted() { return muted; } };
+})();
+["pointerdown", "keydown", "wheel"].forEach(ev =>
+  window.addEventListener(ev, () => Ticker.unlock(), {once: true, passive: true})
+);
+
+/* ── 轮盘 ── */
+function buildWheel(col) {
+  const el = document.querySelector(`.wheel[data-col="${col}"]`);
+  const values = RANGES[col]();
+  const track = document.createElement("div");
+  track.className = "track";
+  for (let i = 0; i < PAD; i++) track.appendChild(row("", true));
+  values.forEach(v => track.appendChild(row(col === "year" ? String(v) : pad2(v), false, v)));
+  for (let i = 0; i < PAD; i++) track.appendChild(row("", true));
+  el.appendChild(track);
+  const w = {el, track, values, index: 0, col};
+  el._wheel = w;
+  bindDrag(w);
+  return w;
+}
+
+function row(text, blank, val) {
+  const d = document.createElement("div");
+  d.className = "item dim";
+  d.textContent = text;
+  if (blank) d.style.visibility = "hidden";
+  if (val !== undefined) d.dataset.val = val;
+  return d;
+}
+
+function paint(w) {
+  const items = [...w.track.children];
+  const sel = w.index + PAD;
+  items.forEach((it, i) => {
+    const dist = Math.abs(i - sel);
+    it.classList.toggle("sel", dist === 0);
+    it.classList.toggle("dim", dist > 0);
+    it.style.opacity = dist === 0 ? "1" : dist === 1 ? ".55" : ".28";
+  });
+  w.track.style.transform = `translateY(${-(w.index * ROW_H)}px)`;
+}
+
+function setIndex(w, idx, animate = true) {
+  w.index = Math.max(0, Math.min(w.values.length - 1, idx));
+  w.track.classList.toggle("snap", animate);
+  w.track.classList.remove("drag");
+  paint(w);
+  syncState(w.col, w.values[w.index]);
+  updatePreview();
+}
+
+function syncState(col, val) {
+  state[col] = val;
+  if (col === "year" || col === "month") clampDay();
+  state.shichen = state.vague ? state.shichen : shichenOf(state.hour);
+}
+
+function clampDay() {
+  const wEl = document.querySelector('.wheel[data-col="day"]');
+  if (!wEl || !wEl._wheel) return;
+  const w = wEl._wheel;
+  const dim = new Date(state.year, state.month, 0).getDate();
+  if (state.day > dim) { state.day = dim; setIndex(w, dim - 1, true); }
+  [...w.track.children].forEach(it => {
+    const v = Number(it.dataset.val);
+    if (v) it.style.visibility = v > dim ? "hidden" : "";
+  });
+}
+
+function bindDrag(w) {
+  let startY = 0, startIdx = 0, dragging = false, lastTickIdx = 0;
+  const down = e => {
+    dragging = true; startY = e.clientY ?? e.touches[0].clientY;
+    startIdx = w.index; lastTickIdx = w.index;
+    w.track.classList.add("drag"); w.track.classList.remove("snap");
+  };
+  const move = e => {
+    if (!dragging) return;
+    const y = e.clientY ?? e.touches[0].clientY;
+    const delta = startY - y;
+    const raw = startIdx + (delta / ROW_H) * DRAG_GAIN;
+    const clamped = Math.max(0, Math.min(w.values.length - 1, raw));
+    w.index = Math.round(clamped);
+    if (w.index !== lastTickIdx) { Ticker.tick(0.55); lastTickIdx = w.index; }
+    w.track.style.transform = `translateY(${-(clamped * ROW_H)}px)`;
+    [...w.track.children].forEach((it, i) => {
+      const d = Math.abs(i - (clamped + PAD));
+      it.style.opacity = d < .35 ? "1" : d < 1.35 ? ".5" : ".24";
+    });
+    e.preventDefault();
+  };
+  const up = () => {
+    if (!dragging) return;
+    dragging = false;
+    Ticker.tick(0.9);
+    setIndex(w, w.index, true);
+  };
+  w.el.addEventListener("mousedown", down);
+  window.addEventListener("mousemove", move, {passive: false});
+  window.addEventListener("mouseup", up);
+  w.el.addEventListener("touchstart", down, {passive: false});
+  window.addEventListener("touchmove", move, {passive: false});
+  window.addEventListener("touchend", up);
+
+  let t = null;
+  w.el.addEventListener("wheel", e => {
+    e.preventDefault();
+    if (t) clearTimeout(t);
+    const dir = e.deltaY > 0 ? 1 : -1;
+    const before = w.index;
+    w.index = Math.max(0, Math.min(w.values.length - 1, w.index + dir));
+    if (w.index !== before) Ticker.tick(0.6);
+    w.track.classList.add("snap"); w.track.classList.remove("drag");
+    paint(w);
+    t = setTimeout(() => { syncState(w.col, w.values[w.index]); updatePreview(); }, 120);
+  }, {passive: false});
+
+  w.el.addEventListener("click", e => {
+    const it = e.target.closest(".item");
+    if (!it || it.style.visibility === "hidden") return;
+    const idx = [...w.track.children].indexOf(it) - PAD;
+    if (idx >= 0 && idx < w.values.length && idx !== w.index) {
+      Ticker.tick(0.85);
+      setIndex(w, idx, true);
+    }
+  });
+
+  w.el.tabIndex = 0;
+  w.el.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      Ticker.tick(0.75);
+      setIndex(w, w.index + (e.key === "ArrowUp" ? -1 : 1));
+      e.preventDefault();
+    }
+  });
+}
+
+/* ── 时辰 ── */
+const SHICHEN = [
+  ["子", "23:00–00:59"], ["丑", "01:00–02:59"], ["寅", "03:00–04:59"],
+  ["卯", "05:00–06:59"], ["辰", "07:00–08:59"], ["巳", "09:00–10:59"],
+  ["午", "11:00–12:59"], ["未", "13:00–14:59"], ["申", "15:00–16:59"],
+  ["酉", "17:00–18:59"], ["戌", "19:00–20:59"], ["亥", "21:00–22:59"],
+];
+function shichenOf(h) {
+  if (h === 23 || h === 0) return "子";
+  return SHICHEN[Math.floor((h + 1) / 2) % 12][0];
+}
+function buildShichen() {
+  const box = document.getElementById("shichen-strip");
+  box.innerHTML = SHICHEN.map(([name, span]) =>
+    `<button data-sc="${name}">${name}时<small>${span}</small></button>`).join("");
+  box.addEventListener("click", e => {
+    const b = e.target.closest("button[data-sc]");
+    if (!b) return;
+    state.shichen = b.dataset.sc;
+    [...box.children].forEach(x => x.classList.toggle("on", x === b));
+    updatePreview();
+  });
+}
+
+/* ── 性别 ── */
+const sexSeg = document.getElementById("sex-seg");
+function paintSex() {
+  [...sexSeg.children].forEach(x => {
+    const on = x.dataset.sex === state.sex;
+    x.classList.toggle("on", on);
+    x.setAttribute("aria-pressed", String(on));
+  });
+}
+sexSeg.addEventListener("click", e => {
+  const b = e.target.closest("button[data-sex]");
+  if (!b) return;
+  state.sex = b.dataset.sex;
+  paintSex();
+  updatePreview();
+});
+
+/* ── 预览 ── */
+function fmt() {
+  return `${state.year}-${pad2(state.month)}-${pad2(state.day)} ` +
+         (state.vague ? `${state.shichen}时（大概）` : `${pad2(state.hour)}:${pad2(state.minute)}`) +
+         `　${state.sex}`;
+}
+function updatePreview() {
+  document.getElementById("preview").textContent = "当前：" + fmt();
+}
+
+/* ── 不确定开关 ── */
+const vagueBox = document.getElementById("vague");
+function applyVagueUI() {
+  vagueBox.checked = state.vague;
+  document.getElementById("shichen-box").hidden = !state.vague;
+  ["hour", "minute"].forEach(c => {
+    document.querySelector(`#wrap-${c}`).classList.toggle("disabled", state.vague);
+  });
+  if (state.vague) {
+    const box = document.getElementById("shichen-strip");
+    [...box.children].forEach(x => x.classList.toggle("on", x.dataset.sc === state.shichen));
+  }
+}
+vagueBox.addEventListener("change", e => {
+  state.vague = e.target.checked;
+  applyVagueUI();
+  updatePreview();
+});
+
+/* ── 解读素材（引擎只给结构，人话在这里补；保持「传统流派说法」口径） ── */
+const STARS = {
+  "魁罡": {mean:"主性刚果断、有魄力"},
+  "将星": {mean:"主领导力与掌控欲，适合带团队"},
+  "华盖": {mean:"主孤高清高、宜文艺术数，社交偏淡"},
+  "月德贵人": {mean:"主逢凶化吉，遇事有人帮"},
+  "天乙贵人": {mean:"主一生多得贵人扶助"},
+  "文昌": {mean:"主聪明好学，利考试文书"},
+  "文昌贵人": {mean:"主聪明好学，利考试文书"},
+  "驿马": {mean:"主奔波走动，宜外出发展"},
+  "桃花": {mean:"主人缘异性缘佳"},
+  "羊刃": {mean:"主性烈果决，宜技术武职"},
+  "禄神": {mean:"主衣食安稳、得俸禄之气"},
+};
+const GRADE = {
+  school: {cls:"k4", label:"流派规则"},
+  pub:    {cls:"k2", label:"公开出版物"},
+  verified:{cls:"k3", label:"已核对"},
+  undated:{cls:"ki", label:"来源未定"},
+};
+const WX_COLOR = {木:"#4a9d5f", 火:"#d94f4f", 土:"#b8873f", 金:"#8a8a94", 水:"#3f7fb8"};
+const WX_DESC = {
+  木:"多主仁厚、有生长之气，喜条达",
+  火:"多主热情、外显，喜明亮",
+  土:"多主稳重、能承载，重信用",
+  金:"多主义气、决断，重规矩",
+  水:"多主灵活、善流动，重智",
+};
+
+function readWuxing(w) {
+  const total = Object.values(w).reduce((a, b) => a + b, 0) || 1;
+  const rows = Object.entries(w).sort((a, b) => b[1] - a[1]);
+  const top = rows[0], low = rows[rows.length - 1];
+  const pct = v => Math.round(v / total * 100);
+  const parts = [];
+  parts.push(`五行里 <b>${top[0]}</b> 最重（占 ${pct(top[1])}%），<b>${low[0]}</b> 最轻（占 ${pct(low[1])}%）。`);
+  const missing = rows.filter(([, v]) => v === 0).map(([k]) => k);
+  if (missing.length) parts.push(`<b>${missing.join("、")}</b> 完全不显。`);
+  else if (pct(low[1]) < 5) parts.push(`<b>${low[0]}</b> 极弱但未缺。`);
+  return parts.join("");
+}
+
+/* ── 排盘与渲染 ── */
+async function run() {
+  const btn = document.getElementById("go");
+  btn.disabled = true; btn.textContent = "排盘中…";
+
+  const qs = new URLSearchParams({
+    date: `${state.year}-${pad2(state.month)}-${pad2(state.day)}`,
+    hour: `${pad2(state.hour)}:${pad2(state.minute)}`,
+    sex: state.sex,
+  });
+  if (state.vague) { qs.set("vague", "1"); qs.set("shichen", state.shichen); }
+  // 地址栏同步，页面可分享
+  history.replaceState(null, "", "demo-picker.html?" + qs.toString());
+
+  try {
+    const r = await fetch("/api/bazi?" + qs);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error?.message || "排盘失败");
+    renderAll(d);
+  } catch (err) {
+    document.getElementById("verdict").innerHTML =
+      `<p>排盘失败：${esc(err.message)}</p>`;
+  } finally {
+    btn.disabled = false; btn.textContent = "重新排盘";
+    const empty = document.getElementById("empty-state");
+    if (empty) empty.hidden = true;
+    const res = document.getElementById("result");
+    res.hidden = false;
+    res.classList.remove("rise"); void res.offsetWidth; res.classList.add("rise");
+    document.body.classList.add("loaded");
+  }
+}
+
+function renderAll(d) {
+  const res = d.result || {};
+  const p = res.pillars || {};
+  const dm = res.day_master || {};
+  const lunar = res.lunar || {};
+  const dayun = res.dayun || {};
+  const wcount = res.wuxing_count || {};
+  const wweight = res.wuxing_weighted || {};
+
+  const when = `${esc(res.input?.solar || "")} ${state.vague ? esc(state.shichen) + "时" : esc(res.input?.hour || "")}`;
+
+  /* ① 结论 */
+  document.getElementById("verdict-note").textContent =
+    `${state.sex}命 · ${when} · 农历 ${esc(lunar.year_cn || "")}年${esc(lunar.month_cn || "")}${esc(lunar.day_cn || "")} · 属${esc(res.shengxiao || "")}`;
+  document.getElementById("verdict").innerHTML = `
+    <p class="lead-line">
+      你是 <b>${esc(dm.stem || "")}${esc(dm.wuxing || "")}</b> 日主，
+      ${esc(dm.yinyang || "")}干。日主代表「你自己」——
+      传统流派讲法里，${esc(dm.wuxing || "")}性之人${WX_DESC[dm.wuxing] || ""}。
+    </p>
+    <p>${readWuxing(wweight)}</p>
+    <p style="font-size:12.5px;color:var(--t3)">
+      涉及性格与运势的内容均为<b>传统流派说法</b>，仅供参考；
+      命盘的干支结构本身不含吉凶。
+    </p>`;
+
+  /* ② 四柱 */
+  const col = (name, key) => {
+    const x = p[key] || {};
+    const cang = (x.canggan || [])
+      .map(c => `${esc(c.stem)}<small style="color:var(--t3);margin-left:3px">${esc(c.shishen)}</small>`)
+      .join(" · ") || "—";
+    return `<tr><td><b>${name}</b></td>
+      <td><b class="gz">${esc(x.ganzhi || "—")}</b></td>
+      <td>${cang}</td><td>${esc(x.shishen || "—")}</td><td>${esc(x.nayin || "—")}</td></tr>`;
+  };
+  document.getElementById("pillars-body").innerHTML =
+    col("年柱", "year") + col("月柱", "month") + col("日柱", "day") + col("时柱", "hour");
+  document.getElementById("pillars-note").textContent =
+    state.vague ? "时柱按所选时辰推算" : "按你输入的钟表时间";
+
+  /* ③ 五行 */
+  const total = Object.values(wweight).reduce((a, b) => a + b, 0) || 1;
+  const maxv = Math.max(...Object.values(wweight), 0.1);
+  document.getElementById("wx-body").innerHTML = Object.entries(wweight)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `
+      <div class="wx-row">
+        <span class="nm">${k}</span>
+        <span class="bar"><i style="width:${(v / maxv * 100).toFixed(1)}%;background:${WX_COLOR[k] || "#999"}"></i></span>
+        <span class="num">${v}<span style="color:var(--t3);font-size:10.5px;margin-left:4px">×${wcount[k] || 0}个</span></span>
+      </div>`).join("");
+  document.getElementById("wx-note").textContent = `加权 · 合计 ${total.toFixed(1)}`;
+  document.getElementById("wx-read").innerHTML = `
+    <p>左边的数字是<b>加权分</b>——月令权重最高，不是简单数个数；
+    右边小字是<b>八字里出现几次</b>。两者经常不一致，属正常。</p>
+    <p>权重高的一面通常被流派解读为性格与际遇的底色；
+    极弱或缺失的一面，则被看作需要后天补益的方向。
+    具体怎么补，各流派说法不一，本页不做建议。</p>`;
+
+  /* ④ 大运 */
+  const list = (dayun.list || []).slice(0, 6);
+  document.getElementById("dayun-dir").textContent =
+    `${esc(dayun.direction || "")}　起运 ${esc(dayun.qiyun?.start_date || "—")}`;
+  document.getElementById("dayun-note").textContent = `${esc(state.sex)}命 · 每步十年`;
+  document.getElementById("dayun-body").innerHTML = list.length
+    ? list.map(x => `<div class="krow">
+        <span class="k">${esc(x.ganzhi)} · ${esc(x.shishen)}</span>
+        <span class="v">${esc(x.start_age)} 岁起</span></div>`).join("")
+    : `<div class="state"><span class="d">—</span></div>`;
+
+  /* ⑤ 神煞：同名合并 */
+  const ssMap = new Map();
+  for (const x of (res.shensha || [])) {
+    const prev = ssMap.get(x.name);
+    if (!prev) { ssMap.set(x.name, { ...x, hits: [...(x.hits || [])], basis: [x.basis] }); }
+    else {
+      for (const h of (x.hits || [])) if (!prev.hits.includes(h)) prev.hits.push(h);
+      if (x.basis && !prev.basis.includes(x.basis)) prev.basis.push(x.basis);
+    }
+  }
+  const ss = [...ssMap.values()];
+  document.getElementById("shensha-body").innerHTML = ss.length
+    ? ss.map(x => {
+        const g = GRADE[x.status] || GRADE.undated;
+        const meta = STARS[x.name] || {};
+        return `<div class="in">
+          <em class="${g.cls}">${esc(g.label)}</em>
+          <span><b>${esc(x.name)}</b>${meta.mean ? "　" + esc(meta.mean) : ""}
+          <span style="color:var(--t3);font-size:11.5px;display:block;margin-top:2px">
+            命中 ${esc((x.hits || []).join("、"))}　依据 ${esc((x.basis || []).join("；"))}</span></span>
+        </div>`;
+      }).join("")
+    : `<div class="state"><span class="d">这张盘没有命中神煞。</span></div>`;
+
+  /* ⑥ 时间口径 */
+  const notes = [];
+  const cc = res.birth?.clock_change;
+  if (cc) {
+    notes.push({label:"已修正",
+      text:`你填的是 <b>${esc(cc.from)}</b>，那年中国实行夏令时，`
+         + `实际标准时是 <b>${esc(cc.to)}</b>，已按标准时排盘。`});
+  }
+  if ((res.warnings || []).some(w => w.code === "LONGITUDE_ESTIMATED")) {
+    notes.push({label:"供参考",
+      text:`没填出生地，按全国统一时区（东经 120°）排盘，`
+         + `没做真太阳时修正。出生地偏西的人，实际时辰可能差一刻到半小时。`});
+  }
+  if (state.vague) {
+    notes.push({label:"推定",
+      text:`你选了「只记得大概」，时柱按 <b>${esc(state.shichen)}时</b> 推算。`
+         + `若记得准确时间，重新输入会更准。`});
+  }
+  document.getElementById("time-note").innerHTML = notes.length
+    ? notes.map(n => `<b>${n.label}</b>　${n.text}`).join("<br>")
+    : `时间口径没有需要修正的地方。`;
+}
+
+/* ── 初始化 ── */
+document.getElementById("go").addEventListener("click", run);
+
+if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  Ticker.setMuted(true);
+}
+
+const wheels = {};
+["year", "month", "day", "hour", "minute"].forEach(c => { wheels[c] = buildWheel(c); });
+["year", "month", "day", "hour", "minute"].forEach(c => {
+  setIndex(wheels[c], wheels[c].values.indexOf(state[c]), false);
+});
+buildShichen();
+paintSex();
+applyVagueUI();
+updatePreview();
+document.body.classList.add("loaded");
+
+/* 带参链接（别人分享的盘）打开即显示；无参进页先填再看 */
+if (__q.get("date")) {
+  run().catch(() => document.body.classList.add("loaded"));
+}
+</script>
+</body>
+</html>

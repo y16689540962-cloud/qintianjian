@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>钦天监 · 八字排盘</title>
+<link rel="icon" href="data:,">
+</head><body>
+<p style="padding:40px;font:14px -apple-system,'PingFang SC',sans-serif;color:#666">
+排盘页已合并为单页。跳转中… 若未跳转 <a id="a" href="demo-picker.html">点这里</a>。
+</p>
+<script>
+// 保留查询参数（date/hour/sex/vague/shichen），旧链接继续有效
+var target = "demo-picker.html" + location.search;
+document.getElementById("a").href = target;
+location.replace(target);
+</script>
+</body></html>
